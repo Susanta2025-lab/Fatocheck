@@ -1,1 +1,12 @@
 raw_data/
+venv/
+__pycache__/
+.ipynb_checkpoints/
+
+data/raw/
+models/trained/
+models/checkpoints/
+
+*.pt
+*.pth
+*.ckpt
