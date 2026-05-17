@@ -1,4 +1,4 @@
-## 🚀 Key Project Contributions (Planned)
+## 🚀 Key Project Contributions
 - **Built an NLP-based fake news classification pipeline**\
 Planned to design an end-to-end machine learning workflow including text preprocessing, feature engineering (TF-IDF), and supervised learning models to classify news articles as real or fake.
 
