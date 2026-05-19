@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "/home/home/.pyenv/versions/3.10.13/envs/Fatocheck/bin/python",
+    "jupyter.notebookEditor.defaultKernel": "/home/home/.pyenv/versions/3.10.13/envs/Fatocheck/bin/python"
+}

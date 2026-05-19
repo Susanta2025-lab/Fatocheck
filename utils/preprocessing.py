@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-
+import string # Optional, but good if you want to use string.punctuation
 
 class TextPreprocessor:
 
@@ -20,6 +20,9 @@ class TextPreprocessor:
 
         # Convert to lowercase
         text = text.lower()
+
+        # Remove punctuation (strips out anything that isn't alphanumeric or whitespace)
+        text = re.sub(r'[^a-zA-Z\s]', '', text)
 
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text).strip()
