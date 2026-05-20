@@ -1,17 +1,34 @@
-data/
+# 1. Environment & Dependencies (Crucial)
 venv/
-__pycache__/
-.ipynb_checkpoints/
+.env
+.venv/
+env/
 
+# 2. Data (Large files & raw data)
 data/raw/
 data/processed/
+*.csv
+*.zip
+
+# 3. Python Compiled Files (Always exclude)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 4. Jupyter Notebook Checkpoints (Avoid merge conflicts)
+.ipynb_checkpoints/
+
+# 5. Trained Models (Large binary files)
 models/trained/
 models/checkpoints/
-
 *.pt
 *.pth
 *.ckpt
-*.csv
-*.json
+*.h5
+
+# 6. IDE / System Files (Local machine configurations)
+.vscode/
+.idea/
+.DS_Store
 *.log
-data/
