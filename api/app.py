@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 import joblib
-import os
+from pathlib import Path
 
 # 1. Initialize the FastAPI application
 app = FastAPI(
@@ -9,23 +9,17 @@ app = FastAPI(
     description="A FastAPI service serving an optimized XGBoost NLP pipeline to classify news articles.",
     version="1.0.0"
 )
-
 # 2. Define the path to your serialized pipeline artifact
-# Since app.py runs from the api/ folder, navigate up to the root, then into models/trained/
-MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../models/trained/xgboost_pipeline.joblib"))
+# Since app.py runs from the api/ folder, navigate up to the root, then into
+MODEL_PATH = Path(__file__).resolve().parents[1] / "models/trained/xgboost_pipeline.joblib"
+model_pipeline = joblib.load(MODEL_PATH)
+# This loads the entire pipeline (TfidfVectorizer + XGBoost classifier) and caches it in memory on startup
+if not MODEL_PATH.exists():
+    raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
 
-# 3. Load the model pipeline globally on startup so it's cached in memory
-if os.path.exists(MODEL_PATH):
-    # This loads the entire pipeline (TfidfVectorizer + XGBoost classifier)
-    model_pipeline = joblib.load(MODEL_PATH)
-    print(f"--- Model pipeline successfully loaded from {MODEL_PATH} ---")
-else:
-    raise FileNotFoundError(f"Serialized model pipeline not found at: {MODEL_PATH}. Please run your training notebook first.")
-
-
-# 4. Define the Pydantic schema for incoming request validation
+# 3. Define the Pydantic schema for incoming request validation
 class NewsArticle(BaseModel):
-    title: str = ""
+    title: str | None = ""
     text: str
 
     class Config:
@@ -36,8 +30,7 @@ class NewsArticle(BaseModel):
             }
         }
 
-
-# 5. Define API Endpoints
+# 4. Define API Endpoints
 @app.get("/")
 def read_root():
     """
@@ -49,45 +42,36 @@ def read_root():
         "model_loaded": "xgboost_pipeline"
     }
 
-
-@app.post("/ predict")
+# 5. Define the prediction endpoint
+@app.post("/predict")
 def predict_news(article: NewsArticle):
-    """
-    Accepts a news article body (and optional title), combines them,
-    runs them through the pipeline, and returns the classification.
-    """
     try:
-        # Combine title and text exactly the way you did during training preprocessing
         full_text = f"{article.title} {article.text}".strip()
 
         if not full_text:
             raise HTTPException(status_code=400, detail="Input text cannot be empty.")
 
-        # The pipeline expects an iterable (e.g., a list of strings)
-        # It automatically performs .transform() via TF-IDF and then .predict()
         prediction_code = int(model_pipeline.predict([full_text])[0])
 
-        # FINAL MAPPING:
-        # Based on the processed dataset labels used during training
         label_mapping = {
-            0: "Fake",
-            1: "Real"
+            0: "FAKE",
+            1: "REAL"
         }
 
-        result_label = label_mapping.get(prediction_code, "Unknown")
+        label = label_mapping[prediction_code]
 
-        # Optional: If your pipeline supports predict_proba, get confidence scores
-        if hasattr(model_pipeline, "predict_proba"):
-            probabilities = model_pipeline.predict_proba([full_text])[0]
-            confidence = float(probabilities[prediction_code])
-        else:
-            confidence = None
+        proba = model_pipeline.predict_proba([full_text])[0]
 
         return {
             "prediction_code": prediction_code,
-            "label": result_label,
-            "confidence": confidence
+            "label": label,
+            "probabilities": {
+                "fake": float(proba[0]),
+                "real": float(proba[1])
+            },
+            "model": "xgboost_pipeline"
         }
-
+    except HTTPException as e:
+        raise e # Re-raise HTTP exceptions to be handled by FastAPI
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Inference Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
