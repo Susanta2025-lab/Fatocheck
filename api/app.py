@@ -10,9 +10,12 @@ app = FastAPI(
     version="1.0.0"
 )
 # 2. Define the path to your serialized pipeline artifact
-# Since app.py runs from the api/ folder, navigate up to the root, then into
-MODEL_PATH = Path(__file__).resolve().parents[1] / "models/trained/xgboost_pipeline.joblib"
+# Make sure this path is correct and points to the location where your model pipeline is saved after training
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_PATH = BASE_DIR / "models" / "trained" / "xgboost_pipeline.joblib"
+
 model_pipeline = joblib.load(MODEL_PATH)
+
 # This loads the entire pipeline (TfidfVectorizer + XGBoost classifier) and caches it in memory on startup
 if not MODEL_PATH.exists():
     raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
