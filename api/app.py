@@ -28,7 +28,7 @@ class NewsArticle(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "title": "Trump’s allies are already lining up to apply to his $1.8 billion fund",
+                "title": "Trump’s allies are already lining up to apply to his $1.8 billion fund for alien projects",
                 "text": "Those who might claim they were wrongly targeted by the government include Jan. 6 rioters and people who tried to help Trump overturn the 2020 election."
             }
         }
