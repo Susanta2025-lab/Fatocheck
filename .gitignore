@@ -20,7 +20,6 @@ __pycache__/
 .ipynb_checkpoints/
 
 # 5. Trained Models (Large binary files)
-models/trained/
 models/checkpoints/
 *.pt
 *.pth
