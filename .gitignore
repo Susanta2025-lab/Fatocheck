@@ -25,9 +25,11 @@ models/checkpoints/
 *.pth
 *.ckpt
 *.h5
+*.safetensors
 
 # 6. IDE / System Files (Local machine configurations)
 .vscode/
 .idea/
 .DS_Store
 *.log
+*.json
