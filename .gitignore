@@ -32,4 +32,3 @@ models/checkpoints/
 .idea/
 .DS_Store
 *.log
-*.json
