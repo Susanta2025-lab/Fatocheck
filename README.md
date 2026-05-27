@@ -1,12 +1,6 @@
-# FatoCheck: Real-Time Fake News Detection Pipeline
+# FatoCheck 🔍: Real-Time Fake News Detection Pipeline
 An end-to-end NLP project designed to detect misinformation by leveraging a multi-tiered approach—from classical machine learning pipelines to state-of-the-art Transformer architectures.
 
-<h1 align="center">FatoCheck 🔍</h1>
-
-<p align="center">
-  <b>Real-Time Fake News Detection Pipeline</b><br>
-  End-to-End NLP + Transformer-Based Misinformation Detection System
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python"/>
