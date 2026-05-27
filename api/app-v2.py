@@ -84,7 +84,7 @@ def read_root():
 
     return {
         "status": "online",
-        "project": "Fatocheck-v2: Fake News Detector-API-v2",
+        "project": "Fatocheck.v2: Fake News Detector-API",
         "available_models": [
             "xgboost",
             "bert"
