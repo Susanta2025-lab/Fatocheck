@@ -1,3 +1,8 @@
+## This FastAPI application (Version 1.0.0) serves a machine learning model for fake news detection.
+# It loads a pre-trained XGBoost pipeline that includes text vectorization and classification.
+# The API provides two endpoints: a health check at the root ("/") and a prediction endpoint ("/predict") that
+# accepts news articles in JSON format and returns the predicted label along with probabilities.
+
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 import joblib
@@ -12,13 +17,13 @@ app = FastAPI(
 # 2. Define the path to your serialized pipeline artifact
 # Make sure this path is correct and points to the location where your model pipeline is saved after training
 BASE_DIR = Path(__file__).resolve().parents[1]
-MODEL_PATH = BASE_DIR / "models" / "trained" / "xgboost_pipeline.joblib"
+MODEL_DIR = BASE_DIR / "models" / "trained" / "xgboost_pipeline.joblib"
 
-model_pipeline = joblib.load(MODEL_PATH)
+model_pipeline = joblib.load(MODEL_DIR)
 
 # This loads the entire pipeline (TfidfVectorizer + XGBoost classifier) and caches it in memory on startup
-if not MODEL_PATH.exists():
-    raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+if not MODEL_DIR.exists():
+    raise FileNotFoundError(f"Model not found at {MODEL_DIR}")
 
 # 3. Define the Pydantic schema for incoming request validation
 class NewsArticle(BaseModel):
