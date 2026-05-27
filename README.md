@@ -1,11 +1,5 @@
-<p align="center">
-  <img src="fatocheck/fatocheck_header.png" width="800"/>
-</p>
-
-
-<p align="center">
-  <img src="fatocheck/fatocheck_header.png" width="900"/>
-</p>
+# FatoCheck: Real-Time Fake News Detection Pipeline
+An end-to-end NLP project designed to detect misinformation by leveraging a multi-tiered approach—from classical machine learning pipelines to state-of-the-art Transformer architectures.
 
 <h1 align="center">FatoCheck 🔍</h1>
 
