@@ -10,7 +10,7 @@ from pathlib import Path
 
 # 1. Initialize the FastAPI application
 app = FastAPI(
-    title="Fatocheck - Fake News Detection API",
+    title="Fatocheck-v1 - Fake News Detection API",
     description="A FastAPI service serving an optimized XGBoost NLP pipeline to classify news articles.",
     version="1.0.0"
 )
@@ -46,7 +46,7 @@ def read_root():
     """
     return {
         "status": "online",
-        "project": "Fatocheck Fake News Detector",
+        "project": "Fatocheck-v1: Fake News Detector-API",
         "model_loaded": "xgboost_pipeline"
     }
 

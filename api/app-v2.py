@@ -19,7 +19,7 @@ from utils.inference import predict_news
 # =========================================================
 
 app = FastAPI(
-    title="Fatocheck - Fake News Detection API",
+    title="Fatocheck-v2 - Fake News Detection API",
 
     description="""
     AI-powered fake news detection system using:
@@ -84,7 +84,7 @@ def read_root():
 
     return {
         "status": "online",
-        "project": "Fatocheck",
+        "project": "Fatocheck-v2: Fake News Detector-API-v2",
         "available_models": [
             "xgboost",
             "bert"
