@@ -1,4 +1,9 @@
 <p align="center">
+  <img src="fatocheck/fatocheck_header.png" width="800"/>
+</p>
+
+
+<p align="center">
   <img src="fatocheck/fatocheck_header.png" width="900"/>
 </p>
 
