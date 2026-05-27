@@ -12,9 +12,9 @@ An end-to-end NLP project designed to detect misinformation by leveraging a mult
   <img src="https://img.shields.io/badge/Scikit--Learn-ML-orange?style=for-the-badge&logo=scikitlearn"/>
   <img src="https://img.shields.io/badge/Transformers-BERT-yellow?style=for-the-badge&logo=huggingface"/>
   <img src="https://img.shields.io/badge/Docker-Containerized-blue?style=for-the-badge&logo=docker"/>
-  [![Live API](https://img.shields.io/badge/Live%20API-Render-purple?logo=render&logoColor=white)](https://fatocheck.onrender.com/docs)
+  
   </p>
-
+[![Live API](https://img.shields.io/badge/Live%20API-Render-purple?logo=render&logoColor=white)](https://fatocheck.onrender.com/docs)
 ---
 
 ## 🚀 Key Project Contributions
