@@ -15,8 +15,7 @@
   <img src="https://img.shields.io/badge/Scikit--Learn-ML-orange?style=for-the-badge&logo=scikitlearn"/>
   <img src="https://img.shields.io/badge/Transformers-BERT-yellow?style=for-the-badge&logo=huggingface"/>
   <img src="https://img.shields.io/badge/Docker-Containerized-blue?style=for-the-badge&logo=docker"/>
-  <img src="https://img.shields.io/badge/MLOps-Production-ready-critical?style=for-the-badge"/>
-</p>
+  </p>
 
 ---
 
@@ -31,15 +30,6 @@ It combines **high-performance NLP modeling, scalable APIs, and containerized de
 
 ---
 
-## 🔗 Quick Links
-
-- 📊 [Project Notebook](#)  
-- ⚙️ [API Documentation](#)  
-- 🐳 [Docker Setup](#)  
-- 🧠 [Model Architecture](#)  
-- 📈 [Results & Metrics](#)  
-
----
 
 ## 🎯 Key Highlights
 
