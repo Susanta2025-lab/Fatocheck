@@ -14,7 +14,9 @@ An end-to-end NLP project designed to detect misinformation by leveraging a mult
   <img src="https://img.shields.io/badge/Docker-Containerized-blue?style=for-the-badge&logo=docker"/>
   
   </p>
+  
 [![Live API](https://img.shields.io/badge/Live%20API-Render-purple?logo=render&logoColor=white)](https://fatocheck.onrender.com/docs)
+
 ---
 
 ## 🚀 Key Project Contributions
