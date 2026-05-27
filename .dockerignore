@@ -1,6 +1,8 @@
 __pycache__/
+*.pyc
 .ipynb_checkpoints/
 notebooks/
-data/
-.git/
+data/raw/
 .env
+.git
+.gitignore
