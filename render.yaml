@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: fatocheck-api
+    env: docker
+
+    # This tells Render where to find the app
+    healthCheckPath: /health
+
+    # Auto-scale settings
+    autoDeploy: true
+
+    # Timeout settings (important!)
+    initialDelaySeconds: 60
+    healthCheckInterval: 30

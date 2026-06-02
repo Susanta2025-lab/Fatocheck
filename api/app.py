@@ -1,8 +1,4 @@
-## This FastAPI application (Latest Version) serves a combined machine learning model (XGBoost) and transformer model (BERT) for fake news detection.
-# It loads a pre-trained XGBoost pipeline that includes text vectorization and classification.
-# The API provides three endpoints: a health check at the root ("/"), a prediction endpoint ("/predict") and a optional model information endpoint ("/models").
-# Second endpoint accepts news articles in JSON format and returns the predicted label along with probabilities.
-#
+## FastAPI application for Fake News Detection
 # =========================================================
 # Imports
 # =========================================================
@@ -10,9 +6,19 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Literal
+import logging
 
-from utils.inference import predict_news
+from utils.inference import predict_news, health_check
 
+# =========================================================
+# Setup Logging
+# =========================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # =========================================================
 # Initialize FastAPI Application
@@ -20,56 +26,67 @@ from utils.inference import predict_news
 
 app = FastAPI(
     title="Fatocheck - Fake News Detection API",
-
     description="""
     AI-powered fake news detection system using:
-
-    - XGBoost NLP pipeline
-    - BERT Transformer model
+    - XGBoost NLP pipeline (fast)
+    - BERT Transformer model (accurate)
 
     Built with FastAPI.
     """,
-
     version="2.0.0"
 )
-
 
 # =========================================================
 # Request Schema
 # =========================================================
 
 class NewsArticle(BaseModel):
-
     title: str | None = Field(
         default="",
         description="Optional news title"
     )
-
     text: str = Field(
         ...,
         description="Main news article text"
     )
-
     model: Literal["xgboost", "bert"] = Field(
         default="xgboost",
         description="Model to use for prediction"
     )
 
     class Config:
-
         json_schema_extra = {
             "example": {
                 "title": "Scientists discover a revolutionary AI model",
-
-                "text": """
-                Researchers developed a new AI system capable
-                of detecting misinformation with high accuracy.
-                """,
-
+                "text": "Researchers developed a new AI system capable of detecting misinformation with high accuracy.",
                 "model": "xgboost"
             }
         }
 
+# =========================================================
+# Startup Event - Log Initialization
+# =========================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Called when app starts - quick check"""
+    logger.info("🚀 Fatocheck API starting...")
+    status = health_check()
+    logger.info(f"📊 System status: {status}")
+    if not status["xgboost_available"]:
+        logger.warning("⚠️  XGBoost model not available!")
+
+# =========================================================
+# Health Check Endpoint (Fast - Renders uses this)
+# =========================================================
+
+@app.get("/health")
+def health():
+    """Health check endpoint - Render uses this"""
+    status = health_check()
+    if not status["xgboost_available"]:
+        return {"status": "degraded", "message": "XGBoost not available"}
+    return {"status": "healthy"}
 
 # =========================================================
 # Root Endpoint
@@ -77,20 +94,16 @@ class NewsArticle(BaseModel):
 
 @app.get("/")
 def read_root():
-
-    """
-    Health check endpoint.
-    """
-
+    """Health check endpoint"""
+    status = health_check()
     return {
         "status": "online",
         "project": "Fatocheck - Fake News Detection API",
-        "available_models": [
-            "xgboost",
-            "bert"
-        ]
+        "version": "2.0.0",
+        "available_models": ["xgboost", "bert"],
+        "xgboost_ready": status["xgboost_available"],
+        "bert_ready": status["bert_available"]
     }
-
 
 # =========================================================
 # Prediction Endpoint
@@ -98,25 +111,19 @@ def read_root():
 
 @app.post("/predict")
 def predict(article: NewsArticle):
-
+    """Predict fake news from article text"""
     try:
-
         # Combine title + text
-        full_text = f"""
-        {article.title}
-
-        {article.text}
-        """.strip()
+        full_text = f"{article.title}\n{article.text}".strip()
 
         # Validate input
         if not full_text:
-
             raise HTTPException(
                 status_code=400,
                 detail="Input text cannot be empty."
             )
 
-        # Run unified inference pipeline
+        # Run prediction
         result = predict_news(
             text=full_text,
             model_type=article.model
@@ -128,41 +135,48 @@ def predict(article: NewsArticle):
         }
 
     except ValueError as e:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        logger.warning(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
-
+        logger.error(f"Prediction error: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Inference error: {str(e)}"
         )
 
-
 # =========================================================
-# Optional Model Information Endpoint
+# Models Information Endpoint
 # =========================================================
 
 @app.get("/models")
 def get_models():
-
-    """
-    Returns available production models.
-    """
-
+    """Returns available production models"""
     return {
         "models": {
             "xgboost": {
                 "type": "Classical Machine Learning",
-                "description": "Fast TF-IDF + XGBoost pipeline"
+                "description": "Fast TF-IDF + XGBoost pipeline",
+                "inference_time": "~50-100ms",
+                "status": "production"
             },
-
             "bert": {
                 "type": "Transformer",
-                "description": "bert-base-uncased transformer model"
+                "description": "bert-base-uncased transformer model",
+                "inference_time": "~500-1000ms (first use slower)",
+                "status": "lazy-loaded"
             }
         }
     }
+
+# =========================================================
+# Readiness Endpoint (For Kubernetes/Render)
+# =========================================================
+
+@app.get("/ready")
+def readiness():
+    """Readiness check - returns 200 if app is ready"""
+    status = health_check()
+    if not status["xgboost_available"]:
+        raise HTTPException(status_code=503, detail="Service not ready")
+    return {"status": "ready"}
