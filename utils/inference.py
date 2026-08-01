@@ -1,193 +1,389 @@
 # utils/inference.py
 
+import logging
+import threading
 import time
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
 import joblib
 import torch
-import logging
-from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
+
 from utils.preprocessing import TextPreprocessor
 
 logger = logging.getLogger(__name__)
 
+
 # =========================================================
-# Base Directory
+# Paths and configuration
 # =========================================================
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODELS_DIR = BASE_DIR / "models" / "trained"
 
+XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_pipeline.joblib"
+BERT_MODEL_PATH = MODELS_DIR / "bert-base-uncased"
+
+# Must match transformer training.
+BERT_MAX_LENGTH = 256
+
+_BERT_REQUIRED_FILES = (
+    "config.json",
+    "tokenizer_config.json",
+    "tokenizer.json",
+)
+
+_BERT_WEIGHT_FILES = (
+    "model.safetensors",
+    "pytorch_model.bin",
+)
+
+
 # =========================================================
-# Initialize Preprocessor
+# Preprocessor and label mappings
 # =========================================================
 
 processor = TextPreprocessor()
 
-# =========================================================
-# Model Paths
-# =========================================================
+XGBOOST_LABEL_MAP: Dict[int, str] = {
+    0: "Fake",
+    1: "Real",
+}
 
-XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_pipeline.joblib"
-BERT_MODEL_NAME = "bert-base-uncased"
-BERT_CACHE_DIR = MODELS_DIR / "bert-cache"
+BERT_FALLBACK_LABEL_MAP: Dict[int, str] = {
+    0: "Fake",
+    1: "Real",
+}
+
 
 # =========================================================
-# Load XGBoost Model (Immediately)
+# Load XGBoost immediately
 # =========================================================
 
 xgboost_model = None
+
 try:
     xgboost_model = joblib.load(XGBOOST_MODEL_PATH)
-    logger.info("✅ XGBoost model loaded successfully")
+    logger.info("XGBoost model loaded successfully")
+
 except FileNotFoundError:
-    logger.warning(f"⚠️  XGBoost model not found at {XGBOOST_MODEL_PATH}")
-except Exception as e:
-    logger.error(f"❌ Error loading XGBoost: {e}")
+    logger.warning(
+        "XGBoost model not found at %s",
+        XGBOOST_MODEL_PATH,
+    )
+
+except Exception:
+    logger.exception("Failed to load XGBoost model")
+
 
 # =========================================================
-# Lazy Load BERT (On First Use)
+# Lazy BERT loading
 # =========================================================
 
-_tokenizer = None
-_bert_model = None
-_bert_loading = False
+_tokenizer: Optional[PreTrainedTokenizerBase] = None
+_bert_model: Optional[PreTrainedModel] = None
+_bert_load_error: Optional[str] = None
+_bert_lock = threading.Lock()
 
-def load_bert_model():
-    """Lazy load BERT model on first request"""
-    global _tokenizer, _bert_model, _bert_loading
+
+def _find_bert_weight_file() -> Optional[Path]:
+    """Return the first supported BERT weight file found."""
+
+    for filename in _BERT_WEIGHT_FILES:
+        candidate = BERT_MODEL_PATH / filename
+
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def is_bert_artifact_available() -> bool:
+    """Check whether the local BERT artifact appears complete."""
+
+    if not BERT_MODEL_PATH.is_dir():
+        return False
+
+    required_files_exist = all(
+        (BERT_MODEL_PATH / filename).is_file()
+        for filename in _BERT_REQUIRED_FILES
+    )
+
+    return required_files_exist and _find_bert_weight_file() is not None
+
+
+def _validate_bert_artifact() -> None:
+    """Raise a clear error when local BERT files are incomplete."""
+
+    if not BERT_MODEL_PATH.is_dir():
+        raise FileNotFoundError(
+            f"Local BERT directory not found at {BERT_MODEL_PATH}."
+        )
+
+    missing_files = [
+        filename
+        for filename in _BERT_REQUIRED_FILES
+        if not (BERT_MODEL_PATH / filename).is_file()
+    ]
+
+    if missing_files:
+        raise FileNotFoundError(
+            "Missing required BERT files: "
+            f"{', '.join(missing_files)}."
+        )
+
+    if _find_bert_weight_file() is None:
+        expected = ", ".join(_BERT_WEIGHT_FILES)
+
+        raise FileNotFoundError(
+            f"No BERT weight file found in {BERT_MODEL_PATH}. "
+            f"Expected one of: {expected}."
+        )
+
+
+def load_bert_model() -> Tuple[
+    PreTrainedTokenizerBase,
+    PreTrainedModel,
+]:
+    """Load the locally fine-tuned BERT model on first use."""
+
+    global _tokenizer, _bert_model, _bert_load_error
 
     if _tokenizer is not None and _bert_model is not None:
         return _tokenizer, _bert_model
 
-    if _bert_loading:
-        logger.warning("⏳ BERT model is already loading, please wait...")
-        # Wait for loading to complete
-        import time
-        time.sleep(2)
+    with _bert_lock:
         if _tokenizer is not None and _bert_model is not None:
             return _tokenizer, _bert_model
 
-    _bert_loading = True
-    logger.info("📥 Loading BERT model... (first time, may take a minute)")
+        try:
+            _validate_bert_artifact()
 
-    try:
-        _tokenizer = AutoTokenizer.from_pretrained(
-            BERT_MODEL_NAME,
-            cache_dir=str(BERT_CACHE_DIR)
-        )
-        _bert_model = AutoModelForSequenceClassification.from_pretrained(
-            BERT_MODEL_NAME,
-            cache_dir=str(BERT_CACHE_DIR)
-        )
-        _bert_model.eval()
-        logger.info("✅ BERT model loaded successfully")
-        _bert_loading = False
-        return _tokenizer, _bert_model
-    except Exception as e:
-        _bert_loading = False
-        logger.error(f"❌ Failed to load BERT: {e}")
-        raise
+            logger.info(
+                "Loading local BERT model from %s",
+                BERT_MODEL_PATH,
+            )
+
+            tokenizer = AutoTokenizer.from_pretrained(
+                BERT_MODEL_PATH,
+                local_files_only=True,
+            )
+
+            model = AutoModelForSequenceClassification.from_pretrained(
+                BERT_MODEL_PATH,
+                local_files_only=True,
+            )
+
+            num_labels = getattr(model.config, "num_labels", None)
+
+            if num_labels != 2:
+                raise RuntimeError(
+                    "Expected a binary BERT classifier, "
+                    f"but num_labels={num_labels}."
+                )
+
+            model.to("cpu")
+            model.eval()
+
+            _tokenizer = tokenizer
+            _bert_model = model
+            _bert_load_error = None
+
+            logger.info("BERT model loaded successfully")
+
+            return _tokenizer, _bert_model
+
+        except FileNotFoundError as exc:
+            _tokenizer = None
+            _bert_model = None
+            _bert_load_error = str(exc)
+            logger.error("BERT artifact validation failed: %s", exc)
+            raise
+
+        except Exception as exc:
+            _tokenizer = None
+            _bert_model = None
+            _bert_load_error = str(exc)
+
+            logger.exception("Failed to load local BERT model")
+
+            raise RuntimeError(
+                "The local BERT model could not be loaded."
+            ) from exc
+
+
+def _resolve_bert_label(
+    prediction_index: int,
+    model: PreTrainedModel,
+) -> str:
+    """Resolve the model output to Fake or Real."""
+
+    id2label = getattr(model.config, "id2label", None) or {}
+
+    raw_label = id2label.get(
+        prediction_index,
+        id2label.get(str(prediction_index)),
+    )
+
+    if raw_label:
+        normalized = str(raw_label).strip().lower()
+
+        if not normalized.startswith("label_"):
+            if normalized.startswith("fake"):
+                return "Fake"
+
+            if normalized.startswith("real"):
+                return "Real"
+
+    return BERT_FALLBACK_LABEL_MAP[prediction_index]
+
 
 # =========================================================
-# Label Mapping
+# XGBoost inference
 # =========================================================
 
-LABEL_MAP = {
-    0: "Fake",
-    1: "Real"
-}
+def predict_xgboost(text: str) -> Dict[str, Any]:
+    """Run prediction with the XGBoost pipeline."""
 
-# =========================================================
-# XGBoost Prediction
-# =========================================================
-
-def predict_xgboost(text):
-    """Fast XGBoost prediction"""
     if xgboost_model is None:
-        raise RuntimeError("XGBoost model not available")
-
-    start_time = time.time()
-
-    try:
-        cleaned_text = processor.clean_text(text)
-        prediction = xgboost_model.predict([cleaned_text])[0]
-        probabilities = xgboost_model.predict_proba([cleaned_text])[0]
-        confidence = round(float(max(probabilities)), 4)
-
-        return {
-            "model": "xgboost",
-            "prediction": LABEL_MAP[prediction],
-            "confidence": confidence,
-            "processing_time_seconds": round(time.time() - start_time, 4)
-        }
-    except Exception as e:
-        logger.error(f"XGBoost prediction error: {e}")
-        raise
-
-# =========================================================
-# BERT Prediction
-# =========================================================
-
-def predict_bert(text):
-    """BERT prediction with lazy loading"""
-    start_time = time.time()
-
-    try:
-        # Lazy load model
-        tokenizer, bert_model = load_bert_model()
-
-        cleaned_text = processor.clean_text(text)
-        inputs = tokenizer(
-            cleaned_text,
-            return_tensors="pt",
-            truncation=True,
-            padding=True,
-            max_length=512
+        raise RuntimeError(
+            "XGBoost model is unavailable. "
+            f"Expected artifact at {XGBOOST_MODEL_PATH}."
         )
 
-        with torch.no_grad():
-            outputs = bert_model(**inputs)
-            probabilities = torch.softmax(outputs.logits, dim=1)
-            confidence, prediction = torch.max(probabilities, dim=1)
+    start_time = time.perf_counter()
 
-        return {
-            "model": "bert-base-uncased",
-            "prediction": LABEL_MAP[prediction.item()],
-            "confidence": round(confidence.item(), 4),
-            "processing_time_seconds": round(time.time() - start_time, 4)
-        }
-    except Exception as e:
-        logger.error(f"BERT prediction error: {e}")
-        raise
+    cleaned_text = processor.clean_text(text)
+
+    prediction = int(
+        xgboost_model.predict([cleaned_text])[0]
+    )
+
+    probabilities = xgboost_model.predict_proba(
+        [cleaned_text]
+    )[0]
+
+    model_classes = list(xgboost_model.classes_)
+
+    if prediction not in model_classes:
+        raise RuntimeError(
+            f"Predicted class {prediction} is missing "
+            f"from model classes {model_classes}."
+        )
+
+    predicted_position = model_classes.index(prediction)
+    confidence = float(probabilities[predicted_position])
+
+    return {
+        "model": "xgboost",
+        "prediction": XGBOOST_LABEL_MAP[prediction],
+        "confidence": round(confidence, 4),
+        "processing_time_seconds": round(
+            time.perf_counter() - start_time,
+            4,
+        ),
+    }
+
 
 # =========================================================
-# Unified Prediction Router
+# BERT inference
 # =========================================================
 
-def predict_news(text, model_type="xgboost"):
-    """Route prediction to appropriate model"""
+def predict_bert(text: str) -> Dict[str, Any]:
+    """Run prediction with the local fine-tuned BERT model."""
+
+    start_time = time.perf_counter()
+
+    tokenizer, bert_model = load_bert_model()
+
+    # Keep this preprocessing because the model was trained
+    # using the clean_content column.
+    cleaned_text = processor.clean_text(text)
+
+    inputs = tokenizer(
+        cleaned_text,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=BERT_MAX_LENGTH,
+    )
+
+    with torch.inference_mode():
+        outputs = bert_model(**inputs)
+        probabilities = torch.softmax(outputs.logits, dim=1)
+        confidence, prediction = torch.max(
+            probabilities,
+            dim=1,
+        )
+
+    prediction_index = int(prediction.item())
+
+    return {
+        "model": "fatocheck-bert",
+        "prediction": _resolve_bert_label(
+            prediction_index,
+            bert_model,
+        ),
+        "confidence": round(float(confidence.item()), 4),
+        "processing_time_seconds": round(
+            time.perf_counter() - start_time,
+            4,
+        ),
+    }
+
+
+# =========================================================
+# Unified router
+# =========================================================
+
+def predict_news(
+    text: str,
+    model_type: str = "xgboost",
+) -> Dict[str, Any]:
+    """Route a request to the selected production model."""
 
     if not isinstance(text, str) or not text.strip():
-        raise ValueError("Input text must be a non-empty string.")
+        raise ValueError(
+            "Input text must be a non-empty string."
+        )
 
     if model_type == "xgboost":
         return predict_xgboost(text)
-    elif model_type == "bert":
+
+    if model_type == "bert":
         return predict_bert(text)
-    else:
-        raise ValueError(
-            f"Unsupported model type: {model_type}. "
-            f"Supported: xgboost, bert"
-        )
+
+    raise ValueError(
+        f"Unsupported model type: {model_type}. "
+        "Supported models: xgboost, bert."
+    )
+
 
 # =========================================================
-# Health Check (No Model Loading)
+# Health information
 # =========================================================
 
-def health_check():
-    """Quick health check without loading models"""
+def health_check() -> Dict[str, Any]:
+    """Return status without triggering BERT loading."""
+
+    xgboost_available = xgboost_model is not None
+
     return {
-        "status": "healthy",
-        "xgboost_available": xgboost_model is not None,
-        "bert_available": _bert_model is not None
+        "status": (
+            "healthy"
+            if xgboost_available
+            else "degraded"
+        ),
+        "xgboost_available": xgboost_available,
+        "bert_artifact_available": (
+            is_bert_artifact_available()
+        ),
+        "bert_loaded": _bert_model is not None,
+        "bert_load_error": _bert_load_error,
     }
