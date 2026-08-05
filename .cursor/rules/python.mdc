@@ -1,0 +1,16 @@
+---
+description: Python implementation standards for FatoCheck
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Rules
+
+## Version
+
+Target the Python version declared by the project and deployment environment.
+
+Current primary target:
+
+```text
+Python 3.10

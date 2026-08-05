@@ -1,0 +1,41 @@
+---
+description: Core FatoCheck architecture, project boundaries, and engineering constraints
+alwaysApply: true
+---
+
+# FatoCheck Architecture Rules
+
+## Project purpose
+
+FatoCheck is a production-oriented NLP and AI engineering project for fake-news classification.
+
+The project contains:
+
+- research notebooks;
+- reusable preprocessing and training modules;
+- serialized machine-learning artifacts;
+- unified inference logic;
+- a FastAPI service;
+- Docker deployment configuration.
+
+Preserve this separation between research and production code.
+
+## Current architecture
+
+```text
+api/
+    app.py                 FastAPI transport and HTTP concerns
+
+utils/
+    preprocessing.py       Reusable text preprocessing
+    training.py            Reusable training logic
+    evaluation.py          Reusable evaluation logic
+    inference.py           Model loading, routing, and prediction
+
+models/trained/            Serialized trained artifacts
+
+notebooks/                 Research, EDA, and reproducibility
+
+data/                      Raw and processed datasets
+
+Dockerfile                 Production container definition

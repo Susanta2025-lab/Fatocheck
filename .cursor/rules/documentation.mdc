@@ -1,0 +1,60 @@
+---
+description: Documentation and README standards for FatoCheck
+globs: "**/*.md"
+alwaysApply: false
+---
+
+# Documentation Rules
+
+## Accuracy
+
+Documentation must reflect the current implementation.
+
+Do not claim:
+
+- an endpoint exists when it does not;
+- a frontend exists when it does not;
+- BERT is deployed when it is only available locally;
+- a model metric without evidence;
+- Docker or cloud support that has not been verified;
+- enterprise features that are only planned.
+
+Distinguish clearly between:
+
+- implemented;
+- locally verified;
+- deployed;
+- experimental;
+- planned.
+
+## README priorities
+
+The README should help a reviewer quickly understand:
+
+1. what problem FatoCheck solves;
+2. current production model;
+3. architecture;
+4. model performance;
+5. how to run the API;
+6. how to use Docker;
+7. deployment status;
+8. project limitations;
+9. future roadmap.
+
+Avoid excessive marketing language.
+
+Use technically accurate, professional wording.
+
+## Project terminology
+
+Use consistently:
+
+```text
+FatoCheck
+TF-IDF
+XGBoost
+BERT
+FastAPI
+Docker
+Render
+WELFake

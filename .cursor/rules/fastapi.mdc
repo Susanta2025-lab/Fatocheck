@@ -1,0 +1,28 @@
+---
+description: FastAPI endpoint, schema, lifecycle, and error-handling standards
+globs: "api/**/*.py"
+alwaysApply: false
+---
+
+# FastAPI Rules
+
+## API responsibility
+
+FastAPI is the transport layer.
+
+Keep endpoint functions focused on:
+
+- request validation;
+- combining request fields;
+- invoking application or inference functions;
+- converting domain errors into HTTP responses;
+- returning documented response structures.
+
+Do not place model or preprocessing implementation inside endpoints.
+
+## Application entrypoint
+
+The application entrypoint is:
+
+```text
+api/app.py

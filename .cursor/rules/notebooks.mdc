@@ -1,0 +1,33 @@
+---
+description: Apply when reading, editing, consolidating, creating, or reviewing Jupyter notebooks
+globs: "notebooks/**/*.ipynb"
+alwaysApply: false
+---
+
+# Notebook Rules
+
+## Role of notebooks
+
+Notebooks are research and reproducibility artifacts.
+
+They should demonstrate:
+
+- dataset understanding;
+- experiment design;
+- model comparison;
+- evaluation;
+- conclusions.
+
+They are not production application modules.
+
+The API, inference service, and Docker runtime must not depend on notebooks.
+
+## Target notebook set
+
+When consolidation is requested, aim for an authoritative structure such as:
+
+```text
+notebooks/
+├── 01_exploration.ipynb
+├── 02_classical_ml.ipynb
+└── 03_transformer.ipynb

@@ -1,0 +1,76 @@
+---
+description: Apply when refactoring, consolidating, reorganizing, or cleaning existing FatoCheck code
+alwaysApply: false
+---
+
+# Refactoring Rules
+
+## Core principle
+
+Refactor to solve a demonstrated problem.
+
+Do not perform broad cleanup merely because code could be written differently.
+
+Prefer the smallest safe change.
+
+## Before editing
+
+Before any refactor:
+
+1. inspect the relevant files;
+2. trace imports and callers;
+3. identify duplicated or obsolete logic;
+4. verify public interfaces;
+5. list the exact files that need modification;
+6. explain why each file is required.
+
+Do not edit until the intended scope is clear.
+
+## Scope control
+
+Modify only files directly relevant to the requested task.
+
+Do not:
+
+- reformat unrelated files;
+- rename unrelated variables;
+- reorder imports across the repository;
+- update documentation unrelated to the change;
+- introduce new architecture during a cleanup task;
+- alter model behavior while consolidating code;
+- change metrics or training settings without explicit instruction.
+
+If a new file appears necessary, explain why before creating it.
+
+## Behavior preservation
+
+Unless explicitly requested, preserve:
+
+- API endpoint paths;
+- request fields;
+- response fields;
+- label mappings;
+- model artifact paths;
+- preprocessing behavior;
+- model outputs;
+- Docker entrypoints;
+- environment-variable names.
+
+Refactoring must not silently change observable behavior.
+
+## Duplication
+
+Remove duplication only when:
+
+- the duplicated logic is materially identical;
+- there is a clear reusable owner;
+- consolidation makes future changes safer.
+
+Preferred ownership:
+
+```text
+Text cleaning       → utils/preprocessing.py
+Training logic      → utils/training.py
+Evaluation logic    → utils/evaluation.py
+Inference logic     → utils/inference.py
+HTTP concerns       → api/app.py

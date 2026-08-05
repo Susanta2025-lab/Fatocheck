@@ -1,0 +1,248 @@
+---
+description: Apply enterprise engineering considerations when designing production, deployment, security, observability, or operational changes
+alwaysApply: false
+---
+
+# Enterprise Engineering Rules
+
+## When to apply
+
+Apply this rule when the task involves:
+
+- production readiness;
+- cloud deployment;
+- security;
+- authentication;
+- reliability;
+- monitoring;
+- model governance;
+- scaling;
+- CI/CD;
+- enterprise architecture;
+- operational workflows.
+
+Do not force enterprise complexity into simple research or documentation tasks.
+
+## Enterprise priorities
+
+Prioritize, in order:
+
+1. correctness;
+2. reliability;
+3. maintainability;
+4. security;
+5. observability;
+6. reproducibility;
+7. scalability;
+8. cost efficiency.
+
+Do not optimize for theoretical scale before current requirements justify it.
+
+## Configuration
+
+Runtime configuration should come from environment variables or a typed settings object when appropriate.
+
+Examples:
+
+- model paths;
+- log level;
+- API keys;
+- allowed origins;
+- deployment environment;
+- model enablement flags.
+
+Do not hard-code:
+
+- secrets;
+- machine-specific paths;
+- cloud credentials;
+- production URLs;
+- environment-dependent behavior.
+
+Add `.env.example` when environment variables become part of the application contract.
+
+Never commit real secrets.
+
+## Security
+
+When modifying public endpoints, consider:
+
+- authentication requirements;
+- rate limiting;
+- request-size limits;
+- CORS;
+- input validation;
+- sensitive error exposure;
+- dependency vulnerabilities.
+
+Do not expose:
+
+- stack traces;
+- local filesystem paths;
+- credentials;
+- internal infrastructure details;
+- raw exception messages when they reveal internals.
+
+Use explicit, safe client-facing errors and detailed server-side logs.
+
+## Reliability
+
+Production endpoints should fail predictably.
+
+Use:
+
+- meaningful HTTP status codes;
+- startup validation;
+- health checks;
+- readiness checks;
+- timeouts for network operations;
+- graceful handling of missing model artifacts.
+
+Do not silently fall back to another model unless the fallback is explicitly designed, documented, and observable.
+
+## Health semantics
+
+Keep health concerns distinct:
+
+- liveness: process is running;
+- readiness: required production dependencies are available;
+- model availability: artifact exists or model is loaded;
+- degraded state: optional capabilities are unavailable.
+
+Do not load a large model merely to answer a lightweight health request.
+
+## Observability
+
+Prefer structured, actionable logs.
+
+Important inference logs may include:
+
+- request ID;
+- selected model;
+- prediction duration;
+- success or failure;
+- model version;
+- error category.
+
+Do not log full user article content by default.
+
+Avoid personally identifiable or sensitive content in logs.
+
+When metrics are requested, consider:
+
+- request count;
+- error rate;
+- latency;
+- model selection frequency;
+- confidence distribution;
+- model-loading failures;
+- drift indicators.
+
+## Model governance
+
+Every production model should eventually have metadata for:
+
+- model name;
+- model version;
+- artifact path or registry URI;
+- training dataset version;
+- training date;
+- label mapping;
+- evaluation metrics;
+- preprocessing version;
+- checksum;
+- deployment status.
+
+Do not overwrite existing production artifacts in place.
+
+Prefer immutable, versioned artifacts.
+
+## Artifact storage
+
+Large model artifacts should not be forced into normal Git storage.
+
+Suitable options include:
+
+- Hugging Face Hub;
+- Git LFS;
+- cloud object storage;
+- managed model registry.
+
+Core inference code should remain provider-independent where practical.
+
+## Deployment
+
+Keep development and production behavior explicit.
+
+Production containers should:
+
+- contain only required runtime files;
+- exclude notebooks and raw datasets;
+- run as predictably as possible;
+- expose a documented port;
+- use a small number of workers when models consume substantial memory;
+- avoid runtime downloads when offline artifacts are expected.
+
+Do not add Kubernetes solely for portfolio appearance.
+
+Use it only if the task specifically requires orchestration concepts.
+
+## Scalability
+
+Before adding distributed architecture, identify the current bottleneck:
+
+- CPU inference;
+- memory;
+- model startup;
+- request concurrency;
+- external API latency;
+- artifact download time.
+
+Prefer simple vertical scaling or model separation before introducing distributed complexity.
+
+For FatoCheck, XGBoost and BERT may eventually be deployed separately because they have different:
+
+- memory requirements;
+- startup times;
+- latency profiles;
+- scaling needs.
+
+Do not split them prematurely unless deployment requirements justify it.
+
+## CI/CD
+
+A production-oriented pipeline should eventually verify:
+
+- formatting;
+- linting;
+- unit tests;
+- API tests;
+- Docker build;
+- dependency installation;
+- artifact-independent test behavior.
+
+Deployment should not proceed when required checks fail.
+
+Do not embed production secrets in workflow files.
+
+## Enterprise documentation
+
+Production changes should update relevant documentation with:
+
+- architecture impact;
+- configuration;
+- deployment steps;
+- operational limitations;
+- rollback considerations.
+
+Do not document capabilities that are not implemented or verified.
+
+## Decision standard
+
+For every enterprise-oriented proposal, explain:
+
+1. problem being solved;
+2. smallest viable solution;
+3. operational benefit;
+4. cost or complexity introduced;
+5. why the solution is justified now.
