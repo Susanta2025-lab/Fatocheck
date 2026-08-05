@@ -32,3 +32,9 @@ models/checkpoints/
 .idea/
 .DS_Store
 *.log
+
+# 7. Test / coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/

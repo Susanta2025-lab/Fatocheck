@@ -15,6 +15,10 @@
   <img src="https://img.shields.io/badge/XGBoost-Production%20Model-337AB7">
   <img src="https://img.shields.io/badge/Transformers-BERT-FFD21E?logo=huggingface&logoColor=black">
   <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white">
+  <a href="https://github.com/Susanta2025-lab/Fatocheck/actions/workflows/ci.yml">
+    <img src="https://github.com/Susanta2025-lab/Fatocheck/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/coverage-pytest--cov-lightgrey" alt="Coverage (pytest-cov)">
 </p>
 
 <p align="center">
@@ -335,6 +339,24 @@ Runtime settings are centralized in `utils/settings.py` and can be overridden wi
 | `MODELS_DIR` | *(unset)*   | Optional override for `models/trained`               |
 
 Per-request model selection via the API `model` field still overrides `MODEL_TYPE`.
+
+### Continuous Integration
+
+GitHub Actions runs on pushes and pull requests to `master` (workflow: `.github/workflows/ci.yml`):
+
+1. lint, format check, unit tests, and coverage
+2. Docker image build (`fatocheck-api:ci`) after quality checks pass
+
+Run the same quality checks locally:
+
+```bash
+python -m pip install -r requirements-dev.txt
+make lint
+make format-check
+pytest tests/ -v --cov=api --cov=utils --cov-report=term-missing --cov-report=xml:coverage.xml
+```
+
+Coverage is produced with `pytest-cov` in CI (`coverage.xml`). There is no external coverage hosting service configured yet; the README coverage badge is a placeholder.
 
 ---
 
