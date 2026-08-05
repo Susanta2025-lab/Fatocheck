@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="fatocheck_header.png" alt="FatoCheck banner" width="100%">
-</p>
-
 # FatoCheck: AI-Powered Fake News Detection
 
 <p align="center">
