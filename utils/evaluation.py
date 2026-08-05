@@ -7,13 +7,13 @@ utils/evaluation.py
 Comprehensive evaluation utilities for:
 1. Binary classification metrics (Accuracy, Precision, Recall, F1)
 2. Confusion Matrix & Classification Reports
-3. RandomizedSearchCV for hyperparameter tuning
-4. Model comparison & ranking
-5. Feature Importance Analysis
-6. Comprehensive visualizations
+3. Model comparison & ranking
+4. Comprehensive visualizations
+
+Hyperparameter tuning (RandomizedSearchCV) lives in utils.training.
+HyperparameterTuner is re-exported from here for backward compatibility.
 """
 
-import os
 import numpy as np
 import pandas as pd
 import logging
@@ -30,11 +30,14 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     confusion_matrix, classification_report
 )
-from sklearn.model_selection import RandomizedSearchCV, train_test_split
-import joblib
 
 # Project utilities
 from utils.preprocessing import TextPreprocessor
+
+# HyperparameterTuner now lives in utils.training (single source of truth
+# for training/tuning logic); re-exported here for backward compatibility
+# with any existing `from utils.evaluation import HyperparameterTuner`.
+from utils.training import HyperparameterTuner  # noqa: F401
 
 
 # =====================================
@@ -47,20 +50,10 @@ RESULTS_DIR = BASE_DIR / "results" / "evaluation"
 PLOTS_DIR = RESULTS_DIR / "plots"
 LOGS_DIR = BASE_DIR / "logs"
 
-# Create directories
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-PLOTS_DIR.mkdir(parents=True, exist_ok=True)
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOGS_DIR / f"evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-        logging.StreamHandler()
-    ]
-)
+# This module must not create directories or configure logging handlers
+# on import. Directories are created lazily by the methods/classes that
+# actually write to them (save_results, EvaluationVisualizer, etc.), and
+# logging handlers are configured by the caller/CLI entry point below.
 logger = logging.getLogger(__name__)
 
 
@@ -315,221 +308,6 @@ class ModelEvaluator:
         logger.info(f"Results saved to {filepath}")
 
         return str(filepath)
-
-
-# =====================================
-# Hyperparameter Tuning with RandomizedSearch
-# =====================================
-
-class HyperparameterTuner:
-    """Optimize model hyperparameters using RandomizedSearchCV"""
-
-    def __init__(self):
-        self.best_params = None
-        self.best_score = None
-        self.search_results = None
-        self.cv_results = None
-
-    def tune_logistic_regression(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Tune Logistic Regression with RandomizedSearchCV
-
-        Args:
-            X_train: Training features (TF-IDF vectorized)
-            y_train: Training labels
-            n_iter: Number of iterations for random search
-            cv: Number of cross-validation folds
-
-        Returns:
-            Dictionary with best parameters and score
-        """
-        from sklearn.linear_model import LogisticRegression
-
-        logger.info("Starting Logistic Regression hyperparameter tuning...")
-
-        # Parameter distribution
-        param_distributions = {
-            'C': [0.01, 0.1, 1, 10, 100],
-            'penalty': ['l1', 'l2']
-        }
-
-        # Initialize model
-        log_reg = LogisticRegression(solver="liblinear", random_state=42)
-
-        # RandomizedSearchCV
-        random_search = RandomizedSearchCV(
-            estimator=log_reg,
-            param_distributions=param_distributions,
-            n_iter=n_iter,
-            cv=cv,
-            verbose=1,
-            n_jobs=-1,
-            random_state=42
-        )
-
-        # Fit
-        random_search.fit(X_train, y_train)
-
-        self.best_params = random_search.best_params_
-        self.best_score = random_search.best_score_
-        self.cv_results = random_search.cv_results_
-
-        logger.info(f"Best Parameters: {self.best_params}")
-        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
-
-        return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
-        }
-
-    def tune_random_forest(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Tune Random Forest with RandomizedSearchCV
-
-        Args:
-            X_train: Training features (TF-IDF vectorized)
-            y_train: Training labels
-            n_iter: Number of iterations for random search
-            cv: Number of cross-validation folds
-
-        Returns:
-            Dictionary with best parameters and score
-        """
-        from sklearn.ensemble import RandomForestClassifier
-
-        logger.info("Starting Random Forest hyperparameter tuning...")
-
-        # Parameter distribution
-        param_distributions = {
-            'n_estimators': [100, 150, 200],
-            'max_depth': [10, 20, 30],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4]
-        }
-
-        # Initialize model
-        rf_model = RandomForestClassifier(random_state=42)
-
-        # RandomizedSearchCV
-        random_search = RandomizedSearchCV(
-            estimator=rf_model,
-            param_distributions=param_distributions,
-            n_iter=n_iter,
-            cv=cv,
-            verbose=1,
-            n_jobs=-1,
-            random_state=42
-        )
-
-        # Fit
-        random_search.fit(X_train, y_train)
-
-        self.best_params = random_search.best_params_
-        self.best_score = random_search.best_score_
-        self.cv_results = random_search.cv_results_
-
-        logger.info(f"Best Parameters: {self.best_params}")
-        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
-
-        return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
-        }
-
-    def tune_xgboost(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Tune XGBoost with RandomizedSearchCV
-
-        Args:
-            X_train: Training features (TF-IDF vectorized)
-            y_train: Training labels
-            n_iter: Number of iterations for random search
-            cv: Number of cross-validation folds
-
-        Returns:
-            Dictionary with best parameters and score
-        """
-        from xgboost import XGBClassifier
-
-        logger.info("Starting XGBoost hyperparameter tuning...")
-
-        # Parameter distribution
-        param_distributions = {
-            'n_estimators': [100, 150, 200],
-            'max_depth': [5, 7, 10],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'subsample': [0.7, 0.8, 0.9],
-            'colsample_bytree': [0.7, 0.8, 0.9]
-        }
-
-        # Initialize model
-        xgb_model = XGBClassifier(
-            objective='binary:logistic',
-            eval_metric='logloss',
-            random_state=42,
-            use_label_encoder=False
-        )
-
-        # RandomizedSearchCV
-        random_search = RandomizedSearchCV(
-            estimator=xgb_model,
-            param_distributions=param_distributions,
-            n_iter=n_iter,
-            cv=cv,
-            verbose=1,
-            n_jobs=-1,
-            random_state=42
-        )
-
-        # Fit
-        random_search.fit(X_train, y_train)
-
-        self.best_params = random_search.best_params_
-        self.best_score = random_search.best_score_
-        self.cv_results = random_search.cv_results_
-
-        logger.info(f"Best Parameters: {self.best_params}")
-        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
-
-        return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
-        }
-
-    def get_cv_results_dataframe(self) -> pd.DataFrame:
-        """
-        Get cross-validation results as DataFrame
-
-        Returns:
-            DataFrame with CV results
-        """
-        if self.cv_results is None:
-            logger.warning("No CV results available")
-            return pd.DataFrame()
-
-        df = pd.DataFrame(self.cv_results)
-        return df[['param_' + key for key in self.best_params.keys()] + ['mean_test_score', 'std_test_score']]
 
 
 # =====================================
@@ -844,6 +622,19 @@ class EvaluationPipeline:
 if __name__ == "__main__":
 
     import argparse
+
+    # Logging handlers are configured here (script entry point) rather
+    # than at import time, so importing this module as a library never
+    # creates directories or log files as a side effect.
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(LOGS_DIR / f"evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
+            logging.StreamHandler()
+        ]
+    )
 
     parser = argparse.ArgumentParser(description="Evaluate Fatocheck models")
     parser.add_argument('--data', type=str, help='Path to test data')

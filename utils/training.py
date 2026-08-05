@@ -10,8 +10,6 @@ This module provides end-to-end training utilities for:
 3. Model serialization and evaluation
 """
 
-import os
-import numpy as np
 import pandas as pd
 import logging
 import json
@@ -20,13 +18,13 @@ from datetime import datetime
 from typing import Tuple, Dict, Any, Optional
 
 # ML Libraries
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report, roc_auc_score, roc_curve
+    classification_report, roc_auc_score
 )
 from sklearn.pipeline import Pipeline
 import joblib
@@ -34,18 +32,13 @@ import xgboost as xgb
 
 # Deep Learning
 import torch
-from torch import nn
-from torch.optim import AdamW
-from torch.utils.data import DataLoader, TensorDataset
-import transformers
+from torch.utils.data import TensorDataset
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
     Trainer,
-    TrainingArguments,
-    TextClassificationPipeline
+    TrainingArguments
 )
-from datasets import Dataset
 
 # Utils
 from utils.preprocessing import TextPreprocessor
@@ -60,19 +53,10 @@ MODELS_DIR = BASE_DIR / "models" / "trained"
 DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 
-# Create directories
-MODELS_DIR.mkdir(parents=True, exist_ok=True)
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOGS_DIR / f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-        logging.StreamHandler()
-    ]
-)
+# This module must not create directories or configure logging handlers
+# on import. Directories are created lazily by the methods that actually
+# write to them (e.g. save_model), and logging handlers are configured by
+# the caller/CLI entry point below, not at import time.
 logger = logging.getLogger(__name__)
 
 
@@ -578,67 +562,208 @@ class TrainingPipeline:
 # =====================================
 # Hyperparameter Tuning
 # =====================================
+#
+# Single source of truth for hyperparameter search. This class was
+# previously duplicated with conflicting APIs in both training.py
+# (GridSearchCV, XGBoost only) and evaluation.py (RandomizedSearchCV,
+# Logistic Regression + Random Forest + XGBoost). The implementation kept
+# here is the RandomizedSearchCV version, since it matches the approach
+# actually used in notebooks/02_classical_ml.ipynb. utils.evaluation
+# re-exports this class so existing imports keep working.
 
 class HyperparameterTuner:
-    """Grid search and optimization"""
+    """Optimize model hyperparameters using RandomizedSearchCV"""
 
     def __init__(self):
-        self.preprocessor = TextPreprocessor()
         self.best_params = None
         self.best_score = None
+        self.search_results = None
+        self.cv_results = None
+
+    def tune_logistic_regression(
+        self,
+        X_train,
+        y_train,
+        n_iter: int = 10,
+        cv: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Tune Logistic Regression with RandomizedSearchCV
+
+        Args:
+            X_train: Training features (TF-IDF vectorized)
+            y_train: Training labels
+            n_iter: Number of iterations for random search
+            cv: Number of cross-validation folds
+
+        Returns:
+            Dictionary with best parameters and score
+        """
+        logger.info("Starting Logistic Regression hyperparameter tuning...")
+
+        param_distributions = {
+            'C': [0.01, 0.1, 1, 10, 100],
+            'penalty': ['l1', 'l2']
+        }
+
+        log_reg = LogisticRegression(solver="liblinear", random_state=42)
+
+        random_search = RandomizedSearchCV(
+            estimator=log_reg,
+            param_distributions=param_distributions,
+            n_iter=n_iter,
+            cv=cv,
+            verbose=1,
+            n_jobs=-1,
+            random_state=42
+        )
+
+        random_search.fit(X_train, y_train)
+
+        self.best_params = random_search.best_params_
+        self.best_score = random_search.best_score_
+        self.cv_results = random_search.cv_results_
+
+        logger.info(f"Best Parameters: {self.best_params}")
+        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
+
+        return {
+            'best_params': self.best_params,
+            'best_score': self.best_score,
+            'best_estimator': random_search.best_estimator_
+        }
+
+    def tune_random_forest(
+        self,
+        X_train,
+        y_train,
+        n_iter: int = 10,
+        cv: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Tune Random Forest with RandomizedSearchCV
+
+        Args:
+            X_train: Training features (TF-IDF vectorized)
+            y_train: Training labels
+            n_iter: Number of iterations for random search
+            cv: Number of cross-validation folds
+
+        Returns:
+            Dictionary with best parameters and score
+        """
+        logger.info("Starting Random Forest hyperparameter tuning...")
+
+        param_distributions = {
+            'n_estimators': [100, 150, 200],
+            'max_depth': [10, 20, 30],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4]
+        }
+
+        rf_model = RandomForestClassifier(random_state=42)
+
+        random_search = RandomizedSearchCV(
+            estimator=rf_model,
+            param_distributions=param_distributions,
+            n_iter=n_iter,
+            cv=cv,
+            verbose=1,
+            n_jobs=-1,
+            random_state=42
+        )
+
+        random_search.fit(X_train, y_train)
+
+        self.best_params = random_search.best_params_
+        self.best_score = random_search.best_score_
+        self.cv_results = random_search.cv_results_
+
+        logger.info(f"Best Parameters: {self.best_params}")
+        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
+
+        return {
+            'best_params': self.best_params,
+            'best_score': self.best_score,
+            'best_estimator': random_search.best_estimator_
+        }
 
     def tune_xgboost(
         self,
-        X_train, y_train,
-        param_grid: Optional[Dict] = None,
+        X_train,
+        y_train,
+        n_iter: int = 10,
         cv: int = 5
-    ):
-        """Tune XGBoost hyperparameters"""
+    ) -> Dict[str, Any]:
+        """
+        Tune XGBoost with RandomizedSearchCV
 
-        if param_grid is None:
-            param_grid = {
-                'max_depth': [5, 7, 10],
-                'learning_rate': [0.01, 0.05, 0.1],
-                'n_estimators': [100, 150, 200]
-            }
+        Args:
+            X_train: Training features (TF-IDF vectorized)
+            y_train: Training labels
+            n_iter: Number of iterations for random search
+            cv: Number of cross-validation folds
 
+        Returns:
+            Dictionary with best parameters and score
+        """
         logger.info("Starting XGBoost hyperparameter tuning...")
 
-        vectorizer = TfidfVectorizer(
-            max_features=10000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-            lowercase=True,
-            stop_words='english'
-        )
+        param_distributions = {
+            'n_estimators': [100, 150, 200],
+            'max_depth': [5, 7, 10],
+            'learning_rate': [0.01, 0.05, 0.1],
+            'subsample': [0.7, 0.8, 0.9],
+            'colsample_bytree': [0.7, 0.8, 0.9]
+        }
 
-        X_train_tfidf = vectorizer.fit_transform(X_train)
-
-        xgb_clf = xgb.XGBClassifier(
+        # NOTE: `use_label_encoder` was dropped here. It was deprecated by
+        # xgboost and is unsupported under the pinned xgboost==3.2.0; this
+        # tuner path is not invoked by any current model artifact.
+        xgb_model = xgb.XGBClassifier(
             objective='binary:logistic',
             eval_metric='logloss',
             random_state=42
         )
 
-        grid_search = GridSearchCV(
-            xgb_clf,
-            param_grid,
+        random_search = RandomizedSearchCV(
+            estimator=xgb_model,
+            param_distributions=param_distributions,
+            n_iter=n_iter,
             cv=cv,
-            scoring='f1',
+            verbose=1,
             n_jobs=-1,
-            verbose=1
+            random_state=42
         )
 
-        grid_search.fit(X_train_tfidf, y_train)
+        random_search.fit(X_train, y_train)
 
-        self.best_params = grid_search.best_params_
-        self.best_score = grid_search.best_score_
+        self.best_params = random_search.best_params_
+        self.best_score = random_search.best_score_
+        self.cv_results = random_search.cv_results_
 
         logger.info(f"Best Parameters: {self.best_params}")
-        logger.info(f"Best Cross-validation Score: {self.best_score:.4f}")
+        logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
 
-        return self.best_params
+        return {
+            'best_params': self.best_params,
+            'best_score': self.best_score,
+            'best_estimator': random_search.best_estimator_
+        }
+
+    def get_cv_results_dataframe(self) -> pd.DataFrame:
+        """
+        Get cross-validation results as DataFrame
+
+        Returns:
+            DataFrame with CV results
+        """
+        if self.cv_results is None:
+            logger.warning("No CV results available")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(self.cv_results)
+        return df[['param_' + key for key in self.best_params.keys()] + ['mean_test_score', 'std_test_score']]
 
 
 # =====================================
@@ -648,6 +773,19 @@ class HyperparameterTuner:
 if __name__ == "__main__":
 
     import argparse
+
+    # Logging handlers are configured here (script entry point) rather
+    # than at import time, so importing this module as a library never
+    # creates directories or log files as a side effect.
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(LOGS_DIR / f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
+            logging.StreamHandler()
+        ]
+    )
 
     parser = argparse.ArgumentParser(description="Train Fatocheck models")
     parser.add_argument('--data', type=str, required=True, help='Path to training data')
