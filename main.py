@@ -14,28 +14,25 @@ It provides:
 import sys
 import argparse
 import json
-from pathlib import Path
+import logging
 from typing import Optional
 
 # Project imports
 from utils.preprocessing import TextPreprocessor
 from utils.inference import predict_news
+from utils.settings import configure_logging, get_settings
 
 
 # =====================================
 # Configuration
 # =====================================
 
-BASE_DIR = Path(__file__).resolve().parent
-MODELS_DIR = BASE_DIR / "models" / "trained"
-
-# Setup logging
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+configure_logging()
 logger = logging.getLogger(__name__)
+
+_settings = get_settings()
+BASE_DIR = _settings.base_dir
+MODELS_DIR = _settings.models_dir
 
 
 # =====================================
@@ -47,8 +44,8 @@ def check_model_availability():
 
     logger.info("Checking model availability...")
 
-    xgboost_path = MODELS_DIR / "xgboost_pipeline.joblib"
-    bert_path = MODELS_DIR / "bert-base-uncased"
+    xgboost_path = _settings.xgboost_model_path
+    bert_path = _settings.bert_model_path
 
     available_models = {}
 
@@ -69,17 +66,20 @@ def check_model_availability():
     return available_models
 
 
-def predict_single(text: str, model_type: str = "xgboost") -> dict:
+def predict_single(text: str, model_type: Optional[str] = None) -> dict:
     """
     Predict a single news article.
 
     Args:
         text: News article text
-        model_type: Either "xgboost" or "bert"
+        model_type: Either "xgboost" or "bert" (defaults to MODEL_TYPE / xgboost)
 
     Returns:
         dict: Prediction result with label and confidence
     """
+
+    if model_type is None:
+        model_type = get_settings().default_model_type
 
     try:
         logger.info(f"Running prediction with model: {model_type}")
@@ -90,17 +90,20 @@ def predict_single(text: str, model_type: str = "xgboost") -> dict:
         raise
 
 
-def predict_batch(texts: list, model_type: str = "xgboost") -> list:
+def predict_batch(texts: list, model_type: Optional[str] = None) -> list:
     """
     Predict multiple news articles.
 
     Args:
         texts: List of news article texts
-        model_type: Either "xgboost" or "bert"
+        model_type: Either "xgboost" or "bert" (defaults to MODEL_TYPE / xgboost)
 
     Returns:
         list: List of prediction results
     """
+
+    if model_type is None:
+        model_type = get_settings().default_model_type
 
     logger.info(f"Running batch prediction ({len(texts)} articles) with model: {model_type}")
 
@@ -297,9 +300,10 @@ Examples:
     predict_parser = subparsers.add_parser('predict', help='Predict fake news')
     predict_parser.add_argument('--text', type=str, help='Single text to predict')
     predict_parser.add_argument('--file', type=str, help='File with texts (one per line)')
-    predict_parser.add_argument('--model', type=str, default='xgboost',
+    predict_parser.add_argument('--model', type=str,
+                               default=get_settings().default_model_type,
                                choices=['xgboost', 'bert'],
-                               help='Model to use (default: xgboost)')
+                               help='Model to use (default: from MODEL_TYPE env, else xgboost)')
     predict_parser.set_defaults(func=cmd_predict)
 
     # Test command

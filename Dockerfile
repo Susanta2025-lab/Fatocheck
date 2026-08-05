@@ -11,6 +11,10 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/app/.cache/huggingface
+ENV MODEL_TYPE=xgboost
+ENV LOG_LEVEL=INFO
+ENV API_HOST=0.0.0.0
+ENV API_PORT=8000
 
 # =========================================================
 # Set Working Directory
@@ -69,4 +73,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Run FastAPI Application
 # =========================================================
 
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["sh", "-c", "uvicorn api.app:app --host ${API_HOST} --port ${API_PORT} --workers 1"]

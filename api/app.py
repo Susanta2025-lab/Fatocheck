@@ -7,20 +7,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from utils.inference import health_check, predict_news
+from utils.settings import configure_logging, get_settings
 
 
 # =========================================================
 # Logging
 # =========================================================
 
-logging.basicConfig(
-    level=logging.INFO,
-    format=(
-        "%(asctime)s - %(name)s - "
-        "%(levelname)s - %(message)s"
-    ),
-)
-
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +37,10 @@ app = FastAPI(
 # Request schema
 # =========================================================
 
+def _default_model_type() -> Literal["xgboost", "bert"]:
+    return get_settings().default_model_type
+
+
 class NewsArticle(BaseModel):
     title: str | None = Field(
         default="",
@@ -56,7 +54,7 @@ class NewsArticle(BaseModel):
     )
 
     model: Literal["xgboost", "bert"] = Field(
-        default="xgboost",
+        default_factory=_default_model_type,
         description="Inference model",
     )
 

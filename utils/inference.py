@@ -16,6 +16,7 @@ from transformers import (
 )
 
 from utils.preprocessing import TextPreprocessor
+from utils.settings import BERT_MAX_LENGTH, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +24,15 @@ logger = logging.getLogger(__name__)
 # =========================================================
 # Paths and configuration
 # =========================================================
+# Module-level aliases are retained so tests can monkeypatch them and so
+# existing import sites keep working. Values come from the central Settings.
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-MODELS_DIR = BASE_DIR / "models" / "trained"
+_settings = get_settings()
+BASE_DIR = _settings.base_dir
+MODELS_DIR = _settings.models_dir
 
-XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_pipeline.joblib"
-BERT_MODEL_PATH = MODELS_DIR / "bert-base-uncased"
-
-# Must match transformer training.
-BERT_MAX_LENGTH = 256
+XGBOOST_MODEL_PATH = _settings.xgboost_model_path
+BERT_MODEL_PATH = _settings.bert_model_path
 
 _BERT_REQUIRED_FILES = (
     "config.json",

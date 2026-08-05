@@ -322,6 +322,20 @@ Open:
 http://127.0.0.1:8000/docs
 ```
 
+### Configuration
+
+Runtime settings are centralized in `utils/settings.py` and can be overridden with environment variables or a local `.env` file (see `.env.example`):
+
+| Variable     | Default     | Purpose                                              |
+| ------------ | ----------- | ---------------------------------------------------- |
+| `MODEL_TYPE` | `xgboost`   | Default inference model when the client omits `model` |
+| `LOG_LEVEL`  | `INFO`      | Process log level                                    |
+| `API_HOST`   | `0.0.0.0`   | Uvicorn bind host (Docker / compose)                 |
+| `API_PORT`   | `8000`      | Uvicorn bind port (Docker / compose)                 |
+| `MODELS_DIR` | *(unset)*   | Optional override for `models/trained`               |
+
+Per-request model selection via the API `model` field still overrides `MODEL_TYPE`.
+
 ---
 
 ## Test the Inference Layer
@@ -404,6 +418,7 @@ http://localhost:8000/docs
 │       ├── archive.zip
 │       └── WELFake_Dataset.csv
 ├── Dockerfile
+├── .env.example
 ├── main.py
 ├── Makefile
 ├── models
@@ -413,12 +428,10 @@ http://localhost:8000/docs
 │       ├── random_forest_pipeline.joblib
 │       └── xgboost_pipeline.joblib
 ├── notebooks
-│   ├── exploration.ipynb
-│   ├── hyperparameter_tuning.ipynb
-│   ├── training_baseline.ipynb
-│   ├── training_transformer_colab.ipynb
-│   ├── training_transformer.ipynb
-│   └── welfake-news-detection-tuned-xgboost-97.ipynb
+│   ├── 01_exploration.ipynb
+│   ├── 02_classical_ml.ipynb
+│   ├── 03_transformer.ipynb
+│   └── archive/
 ├── README.md
 ├── requirements-dev.txt
 ├── requirements.txt
@@ -428,6 +441,7 @@ http://localhost:8000/docs
     ├── inference.py
     ├── __init__.py
     ├── preprocessing.py
+    ├── settings.py
     └── training.py
 ```
 

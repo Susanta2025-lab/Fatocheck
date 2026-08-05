@@ -33,6 +33,7 @@ from sklearn.metrics import (
 
 # Project utilities
 from utils.preprocessing import TextPreprocessor
+from utils.settings import configure_logging, get_settings
 
 # HyperparameterTuner now lives in utils.training (single source of truth
 # for training/tuning logic); re-exported here for backward compatibility
@@ -43,17 +44,16 @@ from utils.training import HyperparameterTuner  # noqa: F401
 # =====================================
 # Configuration & Logging
 # =====================================
+# Module-level path aliases are retained for monkeypatching and callers.
+# Directories and logging handlers are NOT created at import time.
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-MODELS_DIR = BASE_DIR / "models" / "trained"
-RESULTS_DIR = BASE_DIR / "results" / "evaluation"
-PLOTS_DIR = RESULTS_DIR / "plots"
-LOGS_DIR = BASE_DIR / "logs"
+_settings = get_settings()
+BASE_DIR = _settings.base_dir
+MODELS_DIR = _settings.models_dir
+RESULTS_DIR = _settings.results_dir
+PLOTS_DIR = _settings.plots_dir
+LOGS_DIR = _settings.logs_dir
 
-# This module must not create directories or configure logging handlers
-# on import. Directories are created lazily by the methods/classes that
-# actually write to them (save_results, EvaluationVisualizer, etc.), and
-# logging handlers are configured by the caller/CLI entry point below.
 logger = logging.getLogger(__name__)
 
 
@@ -623,17 +623,9 @@ if __name__ == "__main__":
 
     import argparse
 
-    # Logging handlers are configured here (script entry point) rather
-    # than at import time, so importing this module as a library never
-    # creates directories or log files as a side effect.
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(LOGS_DIR / f"evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-            logging.StreamHandler()
-        ]
+    # Logging is configured only at the CLI entry point, not on import.
+    configure_logging(
+        log_file=LOGS_DIR / f"evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
     )
 
     parser = argparse.ArgumentParser(description="Evaluate Fatocheck models")
