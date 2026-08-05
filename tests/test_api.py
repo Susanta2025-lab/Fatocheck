@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import api.app as app_module
-from api.app import app
+from api.app import APP_VERSION, PROCESS_TIME_HEADER, REQUEST_ID_HEADER, app
 
 
 @pytest.fixture
@@ -33,6 +33,15 @@ def _status(
     }
 
 
+def _assert_error_envelope(body, *, code: str):
+    assert body["success"] is False
+    assert body["error"]["code"] == code
+    assert isinstance(body["error"]["message"], str)
+    assert body["error"]["message"]
+    assert isinstance(body["error"]["request_id"], str)
+    assert body["error"]["request_id"]
+
+
 class TestRootEndpoint:
     def test_healthy_root_response(self, client, monkeypatch):
         monkeypatch.setattr(app_module, "health_check", lambda: _status())
@@ -43,7 +52,7 @@ class TestRootEndpoint:
         body = response.json()
         assert body["status"] == "healthy"
         assert body["project"] == "Fatocheck - Fake News Detection API"
-        assert body["version"] == "2.0.0"
+        assert body["version"] == APP_VERSION
         assert body["xgboost_ready"] is True
         assert "xgboost" in body["available_models"]
         assert "bert" not in body["available_models"]
@@ -75,6 +84,7 @@ class TestHealthEndpoint:
         response = client.get("/health")
 
         assert response.status_code == 503
+        _assert_error_envelope(response.json(), code="SERVICE_UNAVAILABLE")
 
 
 class TestReadyEndpoint:
@@ -92,6 +102,7 @@ class TestReadyEndpoint:
         response = client.get("/ready")
 
         assert response.status_code == 503
+        _assert_error_envelope(response.json(), code="SERVICE_UNAVAILABLE")
 
 
 class TestModelsEndpoint:
@@ -154,16 +165,19 @@ class TestPredictEndpoint:
         response = client.post("/predict", json={"title": "  ", "text": " "})
 
         assert response.status_code == 400
+        _assert_error_envelope(response.json(), code="BAD_REQUEST")
 
     def test_empty_text_rejected_by_schema(self, client):
         response = client.post("/predict", json={"text": ""})
 
         assert response.status_code == 422
+        _assert_error_envelope(response.json(), code="VALIDATION_ERROR")
 
     def test_invalid_model_name_rejected_by_schema(self, client):
         response = client.post("/predict", json={"text": "Some text", "model": "not-a-model"})
 
         assert response.status_code == 422
+        _assert_error_envelope(response.json(), code="VALIDATION_ERROR")
 
     def test_value_error_mapped_to_400(self, client, monkeypatch):
         def fake_predict_news(text, model_type):
@@ -174,7 +188,9 @@ class TestPredictEndpoint:
         response = client.post("/predict", json={"text": "Some text"})
 
         assert response.status_code == 400
-        assert response.json()["detail"] == "bad input"
+        body = response.json()
+        _assert_error_envelope(body, code="BAD_REQUEST")
+        assert body["error"]["message"] == "bad input"
 
     def test_missing_artifact_mapped_to_503(self, client, monkeypatch):
         def fake_predict_news(text, model_type):
@@ -185,16 +201,23 @@ class TestPredictEndpoint:
         response = client.post("/predict", json={"text": "Some text"})
 
         assert response.status_code == 503
+        body = response.json()
+        _assert_error_envelope(body, code="SERVICE_UNAVAILABLE")
+        assert body["error"]["message"] == "The selected model is currently unavailable."
+        assert "artifact missing" not in body["error"]["message"]
 
     def test_runtime_failure_mapped_to_503(self, client, monkeypatch):
         def fake_predict_news(text, model_type):
-            raise RuntimeError("model broke")
+            raise RuntimeError("model broke at /secret/path")
 
         monkeypatch.setattr(app_module, "predict_news", fake_predict_news)
 
         response = client.post("/predict", json={"text": "Some text"})
 
         assert response.status_code == 503
+        body = response.json()
+        _assert_error_envelope(body, code="SERVICE_UNAVAILABLE")
+        assert "/secret/path" not in body["error"]["message"]
 
     def test_unexpected_exception_mapped_to_500(self, client, monkeypatch):
         def fake_predict_news(text, model_type):
@@ -205,4 +228,76 @@ class TestPredictEndpoint:
         response = client.post("/predict", json={"text": "Some text"})
 
         assert response.status_code == 500
-        assert response.json()["detail"] == "Internal error while running inference."
+        body = response.json()
+        _assert_error_envelope(body, code="INTERNAL_ERROR")
+        assert body["error"]["message"] == "Internal error while running inference."
+
+
+class TestOperationalHardening:
+    def test_lifespan_startup_logs_without_loading_bert(self, monkeypatch):
+        calls = {"health": 0, "bert_load": 0}
+
+        def fake_health_check():
+            calls["health"] += 1
+            return _status()
+
+        def boom_load_bert():
+            calls["bert_load"] += 1
+            raise AssertionError("BERT must not load during startup")
+
+        monkeypatch.setattr(app_module, "health_check", fake_health_check)
+        monkeypatch.setattr("utils.inference.load_bert_model", boom_load_bert)
+
+        with TestClient(app) as test_client:
+            response = test_client.get("/ready")
+
+        assert response.status_code == 200
+        assert calls["health"] >= 1
+        assert calls["bert_load"] == 0
+
+    def test_generates_request_id_when_absent(self, client, monkeypatch):
+        monkeypatch.setattr(app_module, "health_check", lambda: _status())
+
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        assert REQUEST_ID_HEADER in response.headers
+        assert response.headers[REQUEST_ID_HEADER]
+
+    def test_propagates_incoming_request_id(self, client, monkeypatch):
+        monkeypatch.setattr(app_module, "health_check", lambda: _status())
+
+        response = client.get("/health", headers={REQUEST_ID_HEADER: "test-req-123"})
+
+        assert response.headers[REQUEST_ID_HEADER] == "test-req-123"
+
+    def test_process_time_header_present(self, client, monkeypatch):
+        monkeypatch.setattr(app_module, "health_check", lambda: _status())
+
+        response = client.get("/")
+
+        assert PROCESS_TIME_HEADER in response.headers
+        assert float(response.headers[PROCESS_TIME_HEADER]) >= 0.0
+
+    def test_security_headers_present(self, client, monkeypatch):
+        monkeypatch.setattr(app_module, "health_check", lambda: _status())
+
+        response = client.get("/models")
+
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert response.headers["X-Frame-Options"] == "DENY"
+        assert response.headers["Referrer-Policy"] == "no-referrer"
+
+    def test_error_response_includes_matching_request_id_header(self, client, monkeypatch):
+        monkeypatch.setattr(
+            app_module,
+            "health_check",
+            lambda: _status(xgboost_available=False),
+        )
+
+        response = client.get("/ready", headers={REQUEST_ID_HEADER: "err-req-9"})
+
+        assert response.status_code == 503
+        body = response.json()
+        assert response.headers[REQUEST_ID_HEADER] == "err-req-9"
+        assert body["error"]["request_id"] == "err-req-9"

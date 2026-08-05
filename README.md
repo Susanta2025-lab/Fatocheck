@@ -283,6 +283,39 @@ https://fatocheck.onrender.com/docs
 }
 ```
 
+### Error response
+
+Application errors use a consistent envelope (HTTP status codes are unchanged):
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Human-readable message",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### Operational headers
+
+Every response includes:
+
+| Header | Purpose |
+| ------ | ------- |
+| `X-Request-ID` | Correlation ID (echoed from the request when provided, otherwise generated) |
+| `X-Process-Time` | Request duration in seconds |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `no-referrer` |
+
+Pass a client ID when useful:
+
+```bash
+curl -H "X-Request-ID: my-trace-1" https://fatocheck.onrender.com/health
+```
+
 ---
 
 ## Run Locally

@@ -23,25 +23,19 @@ ENV API_PORT=8000
 WORKDIR /app
 
 # =========================================================
-# Install System Dependencies
-# =========================================================
-
-RUN apt-get update && apt-get install -y \
-    gcc build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# =========================================================
-# Copy Requirements First
+# Install dependencies (build tools removed after pip install)
 # =========================================================
 
 COPY requirements.txt .
 
-# =========================================================
-# Install Python Dependencies
-# =========================================================
-
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        build-essential \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apt-get purge -y gcc build-essential \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # =========================================================
 # Copy Project Files
@@ -50,11 +44,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # =========================================================
-# Create Cache Directories
+# Runtime user and cache directories
 # =========================================================
 
-RUN mkdir -p .cache/huggingface && \
-    chmod -R 777 .cache
+RUN useradd --create-home --uid 1000 appuser \
+    && mkdir -p .cache/huggingface \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 # =========================================================
 # Expose Port

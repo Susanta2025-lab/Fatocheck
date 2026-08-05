@@ -15,7 +15,9 @@ from typing import Literal, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+from utils.request_context import request_id_ctx
+
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - [request_id=%(request_id)s] - %(message)s"
 
 # Artifact filenames — keep in sync with training exports and inference.
 XGBOOST_ARTIFACT_NAME = "xgboost_pipeline.joblib"
@@ -27,6 +29,14 @@ BERT_ARTIFACT_DIR_NAME = "bert-base-uncased"
 BERT_MAX_LENGTH = 256
 
 _LOGGING_CONFIGURED = False
+
+
+class RequestIdFilter(logging.Filter):
+    """Inject the current request ID into every log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_ctx.get()
+        return True
 
 
 class Settings(BaseSettings):
@@ -136,9 +146,13 @@ def configure_logging(
     for existing in list(root.handlers):
         root.removeHandler(existing)
 
+    request_id_filter = RequestIdFilter()
+    for handler in handlers:
+        handler.addFilter(request_id_filter)
+        handler.setFormatter(logging.Formatter(DEFAULT_LOG_FORMAT))
+
     logging.basicConfig(
         level=getattr(logging, resolved_level, logging.INFO),
-        format=DEFAULT_LOG_FORMAT,
         handlers=handlers,
         force=True,
     )
