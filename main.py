@@ -11,17 +11,18 @@ It provides:
 - Quick model testing interface
 """
 
-import sys
 import argparse
 import json
 import logging
+import sys
+from pathlib import Path
 from typing import Optional
+
+from utils.inference import predict_news
 
 # Project imports
 from utils.preprocessing import TextPreprocessor
-from utils.inference import predict_news
 from utils.settings import configure_logging, get_settings
-
 
 # =====================================
 # Configuration
@@ -39,6 +40,7 @@ MODELS_DIR = _settings.models_dir
 # Utility Functions
 # =====================================
 
+
 def check_model_availability():
     """Check if required model artifacts exist."""
 
@@ -50,17 +52,17 @@ def check_model_availability():
     available_models = {}
 
     if xgboost_path.exists():
-        available_models['xgboost'] = True
+        available_models["xgboost"] = True
         logger.info(f"✓ XGBoost model found at {xgboost_path}")
     else:
-        available_models['xgboost'] = False
+        available_models["xgboost"] = False
         logger.warning(f"✗ XGBoost model NOT found at {xgboost_path}")
 
     if bert_path.exists():
-        available_models['bert'] = True
+        available_models["bert"] = True
         logger.info(f"✓ BERT model found at {bert_path}")
     else:
-        available_models['bert'] = False
+        available_models["bert"] = False
         logger.warning(f"✗ BERT model NOT found at {bert_path}")
 
     return available_models
@@ -111,14 +113,11 @@ def predict_batch(texts: list, model_type: Optional[str] = None) -> list:
     for i, text in enumerate(texts, 1):
         try:
             result = predict_news(text, model_type=model_type)
-            result['article_index'] = i
+            result["article_index"] = i
             results.append(result)
         except Exception as e:
             logger.error(f"Error predicting article {i}: {str(e)}")
-            results.append({
-                'article_index': i,
-                'error': str(e)
-            })
+            results.append({"article_index": i, "error": str(e)})
 
     return results
 
@@ -131,21 +130,16 @@ def test_preprocessing(text: str) -> dict:
     processor = TextPreprocessor()
     cleaned = processor.clean_text(text)
 
-    return {
-        'original': text,
-        'cleaned': cleaned,
-        'original_length': len(text),
-        'cleaned_length': len(cleaned)
-    }
+    return {"original": text, "cleaned": cleaned, "original_length": len(text), "cleaned_length": len(cleaned)}
 
 
 def interactive_mode():
     """Interactive prediction mode."""
 
     logger.info("Entering interactive mode. Type 'quit' to exit.")
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FATOCHECK - Interactive Fake News Detection")
-    print("="*60)
+    print("=" * 60)
 
     available_models = check_model_availability()
 
@@ -158,19 +152,19 @@ def interactive_mode():
     if not model_choice:
         model_choice = "xgboost"
 
-    if model_choice not in ['xgboost', 'bert'] or not available_models.get(model_choice):
+    if model_choice not in ["xgboost", "bert"] or not available_models.get(model_choice):
         logger.error(f"Model '{model_choice}' not available.")
         return
 
-    print("\n" + "-"*60)
+    print("\n" + "-" * 60)
     print("Enter news text (type 'quit' to exit):")
-    print("-"*60 + "\n")
+    print("-" * 60 + "\n")
 
     while True:
         try:
             text = input("Enter news article text: ").strip()
 
-            if text.lower() == 'quit':
+            if text.lower() == "quit":
                 logger.info("Exiting interactive mode.")
                 break
 
@@ -181,12 +175,12 @@ def interactive_mode():
             print(f"\nProcessing with {model_choice} model...\n")
             result = predict_single(text, model_type=model_choice)
 
-            print("-"*60)
+            print("-" * 60)
             print(f"Model: {result.get('model')}")
             print(f"Prediction: {result.get('prediction')}")
             print(f"Confidence: {result.get('confidence')}")
             print(f"Processing Time: {result.get('processing_time_seconds')}s")
-            print("-"*60 + "\n")
+            print("-" * 60 + "\n")
 
         except Exception as e:
             logger.error(f"Error: {str(e)}\n")
@@ -196,6 +190,7 @@ def interactive_mode():
 # =====================================
 # CLI Commands
 # =====================================
+
 
 def cmd_predict(args):
     """Handle predict command."""
@@ -209,7 +204,7 @@ def cmd_predict(args):
             logger.error(f"File not found: {args.file}")
             return
 
-        with open(args.file, 'r') as f:
+        with open(args.file, "r") as f:
             texts = [line.strip() for line in f if line.strip()]
 
         results = predict_batch(texts, model_type=args.model)
@@ -220,17 +215,16 @@ def cmd_test(args):
     """Handle test command."""
 
     sample_text = (
-        "Breaking news: Scientists discover revolutionary AI model. "
-        "This AI can detect fake news with 99% accuracy!"
+        "Breaking news: Scientists discover revolutionary AI model. " "This AI can detect fake news with 99% accuracy!"
     )
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FATOCHECK - Model Test")
-    print("="*60)
+    print("=" * 60)
 
     available_models = check_model_availability()
 
-    if available_models.get('xgboost'):
+    if available_models.get("xgboost"):
         print("\n[XGBoost Model]")
         try:
             result = predict_single(sample_text, model_type="xgboost")
@@ -238,7 +232,7 @@ def cmd_test(args):
         except Exception as e:
             logger.error(f"XGBoost test failed: {str(e)}")
 
-    if available_models.get('bert'):
+    if available_models.get("bert"):
         print("\n[BERT Model]")
         try:
             result = predict_single(sample_text, model_type="bert")
@@ -258,9 +252,9 @@ def cmd_preprocess(args):
 def cmd_status(args):
     """Handle status command."""
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FATOCHECK - System Status")
-    print("="*60)
+    print("=" * 60)
 
     available_models = check_model_availability()
 
@@ -278,6 +272,7 @@ def cmd_status(args):
 # Main Function
 # =====================================
 
+
 def main():
     """Main entry point with argument parser."""
 
@@ -291,36 +286,39 @@ Examples:
   python main.py test
   python main.py interactive
   python main.py status
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Predict command
-    predict_parser = subparsers.add_parser('predict', help='Predict fake news')
-    predict_parser.add_argument('--text', type=str, help='Single text to predict')
-    predict_parser.add_argument('--file', type=str, help='File with texts (one per line)')
-    predict_parser.add_argument('--model', type=str,
-                               default=get_settings().default_model_type,
-                               choices=['xgboost', 'bert'],
-                               help='Model to use (default: from MODEL_TYPE env, else xgboost)')
+    predict_parser = subparsers.add_parser("predict", help="Predict fake news")
+    predict_parser.add_argument("--text", type=str, help="Single text to predict")
+    predict_parser.add_argument("--file", type=str, help="File with texts (one per line)")
+    predict_parser.add_argument(
+        "--model",
+        type=str,
+        default=get_settings().default_model_type,
+        choices=["xgboost", "bert"],
+        help="Model to use (default: from MODEL_TYPE env, else xgboost)",
+    )
     predict_parser.set_defaults(func=cmd_predict)
 
     # Test command
-    test_parser = subparsers.add_parser('test', help='Test models')
+    test_parser = subparsers.add_parser("test", help="Test models")
     test_parser.set_defaults(func=cmd_test)
 
     # Preprocess command
-    preprocess_parser = subparsers.add_parser('preprocess', help='Test text preprocessing')
-    preprocess_parser.add_argument('--text', type=str, required=True, help='Text to preprocess')
+    preprocess_parser = subparsers.add_parser("preprocess", help="Test text preprocessing")
+    preprocess_parser.add_argument("--text", type=str, required=True, help="Text to preprocess")
     preprocess_parser.set_defaults(func=cmd_preprocess)
 
     # Status command
-    status_parser = subparsers.add_parser('status', help='Check system status')
+    status_parser = subparsers.add_parser("status", help="Check system status")
     status_parser.set_defaults(func=cmd_status)
 
     # Interactive command
-    interactive_parser = subparsers.add_parser('interactive', help='Interactive mode')
+    interactive_parser = subparsers.add_parser("interactive", help="Interactive mode")
     interactive_parser.set_defaults(func=lambda args: interactive_mode())
 
     # Parse arguments

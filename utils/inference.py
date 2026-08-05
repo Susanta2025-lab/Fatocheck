@@ -8,12 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import joblib
 import torch
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    PreTrainedModel,
-    PreTrainedTokenizerBase,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, PreTrainedModel, PreTrainedTokenizerBase
 
 from utils.preprocessing import TextPreprocessor
 from utils.settings import BERT_MAX_LENGTH, get_settings
@@ -111,10 +106,7 @@ def is_bert_artifact_available() -> bool:
     if not BERT_MODEL_PATH.is_dir():
         return False
 
-    required_files_exist = all(
-        (BERT_MODEL_PATH / filename).is_file()
-        for filename in _BERT_REQUIRED_FILES
-    )
+    required_files_exist = all((BERT_MODEL_PATH / filename).is_file() for filename in _BERT_REQUIRED_FILES)
 
     return required_files_exist and _find_bert_weight_file() is not None
 
@@ -123,29 +115,17 @@ def _validate_bert_artifact() -> None:
     """Raise a clear error when local BERT files are incomplete."""
 
     if not BERT_MODEL_PATH.is_dir():
-        raise FileNotFoundError(
-            f"Local BERT directory not found at {BERT_MODEL_PATH}."
-        )
+        raise FileNotFoundError(f"Local BERT directory not found at {BERT_MODEL_PATH}.")
 
-    missing_files = [
-        filename
-        for filename in _BERT_REQUIRED_FILES
-        if not (BERT_MODEL_PATH / filename).is_file()
-    ]
+    missing_files = [filename for filename in _BERT_REQUIRED_FILES if not (BERT_MODEL_PATH / filename).is_file()]
 
     if missing_files:
-        raise FileNotFoundError(
-            "Missing required BERT files: "
-            f"{', '.join(missing_files)}."
-        )
+        raise FileNotFoundError("Missing required BERT files: " f"{', '.join(missing_files)}.")
 
     if _find_bert_weight_file() is None:
         expected = ", ".join(_BERT_WEIGHT_FILES)
 
-        raise FileNotFoundError(
-            f"No BERT weight file found in {BERT_MODEL_PATH}. "
-            f"Expected one of: {expected}."
-        )
+        raise FileNotFoundError(f"No BERT weight file found in {BERT_MODEL_PATH}. " f"Expected one of: {expected}.")
 
 
 def load_bert_model() -> Tuple[
@@ -184,10 +164,7 @@ def load_bert_model() -> Tuple[
             num_labels = getattr(model.config, "num_labels", None)
 
             if num_labels != 2:
-                raise RuntimeError(
-                    "Expected a binary BERT classifier, "
-                    f"but num_labels={num_labels}."
-                )
+                raise RuntimeError("Expected a binary BERT classifier, " f"but num_labels={num_labels}.")
 
             model.to("cpu")
             model.eval()
@@ -214,9 +191,7 @@ def load_bert_model() -> Tuple[
 
             logger.exception("Failed to load local BERT model")
 
-            raise RuntimeError(
-                "The local BERT model could not be loaded."
-            ) from exc
+            raise RuntimeError("The local BERT model could not be loaded.") from exc
 
 
 def _resolve_bert_label(
@@ -249,34 +224,25 @@ def _resolve_bert_label(
 # XGBoost inference
 # =========================================================
 
+
 def predict_xgboost(text: str) -> Dict[str, Any]:
     """Run prediction with the XGBoost pipeline."""
 
     if xgboost_model is None:
-        raise RuntimeError(
-            "XGBoost model is unavailable. "
-            f"Expected artifact at {XGBOOST_MODEL_PATH}."
-        )
+        raise RuntimeError("XGBoost model is unavailable. " f"Expected artifact at {XGBOOST_MODEL_PATH}.")
 
     start_time = time.perf_counter()
 
     cleaned_text = processor.clean_text(text)
 
-    prediction = int(
-        xgboost_model.predict([cleaned_text])[0]
-    )
+    prediction = int(xgboost_model.predict([cleaned_text])[0])
 
-    probabilities = xgboost_model.predict_proba(
-        [cleaned_text]
-    )[0]
+    probabilities = xgboost_model.predict_proba([cleaned_text])[0]
 
     model_classes = list(xgboost_model.classes_)
 
     if prediction not in model_classes:
-        raise RuntimeError(
-            f"Predicted class {prediction} is missing "
-            f"from model classes {model_classes}."
-        )
+        raise RuntimeError(f"Predicted class {prediction} is missing " f"from model classes {model_classes}.")
 
     predicted_position = model_classes.index(prediction)
     confidence = float(probabilities[predicted_position])
@@ -295,6 +261,7 @@ def predict_xgboost(text: str) -> Dict[str, Any]:
 # =========================================================
 # BERT inference
 # =========================================================
+
 
 def predict_bert(text: str) -> Dict[str, Any]:
     """Run prediction with the local fine-tuned BERT model."""
@@ -343,6 +310,7 @@ def predict_bert(text: str) -> Dict[str, Any]:
 # Unified router
 # =========================================================
 
+
 def predict_news(
     text: str,
     model_type: str = "xgboost",
@@ -350,9 +318,7 @@ def predict_news(
     """Route a request to the selected production model."""
 
     if not isinstance(text, str) or not text.strip():
-        raise ValueError(
-            "Input text must be a non-empty string."
-        )
+        raise ValueError("Input text must be a non-empty string.")
 
     if model_type == "xgboost":
         return predict_xgboost(text)
@@ -360,15 +326,13 @@ def predict_news(
     if model_type == "bert":
         return predict_bert(text)
 
-    raise ValueError(
-        f"Unsupported model type: {model_type}. "
-        "Supported models: xgboost, bert."
-    )
+    raise ValueError(f"Unsupported model type: {model_type}. " "Supported models: xgboost, bert.")
 
 
 # =========================================================
 # Health information
 # =========================================================
+
 
 def health_check() -> Dict[str, Any]:
     """Return status without triggering BERT loading."""
@@ -376,15 +340,9 @@ def health_check() -> Dict[str, Any]:
     xgboost_available = xgboost_model is not None
 
     return {
-        "status": (
-            "healthy"
-            if xgboost_available
-            else "degraded"
-        ),
+        "status": ("healthy" if xgboost_available else "degraded"),
         "xgboost_available": xgboost_available,
-        "bert_artifact_available": (
-            is_bert_artifact_available()
-        ),
+        "bert_artifact_available": (is_bert_artifact_available()),
         "bert_loaded": _bert_model is not None,
         "bert_load_error": _bert_load_error,
     }

@@ -8,17 +8,14 @@ import matplotlib
 
 matplotlib.use("Agg")  # Must be set before any pyplot import (utils.evaluation).
 
-import pandas as pd
-import pytest
+import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
 
 
 @pytest.fixture
 def sample_text():
     """A representative raw news snippet exercising several cleaning rules."""
-    return (
-        "Check this OUT: http://example.com <b>BREAKING</b> "
-        "News!!! Call 911 now.   Multiple   spaces."
-    )
+    return "Check this OUT: http://example.com <b>BREAKING</b> " "News!!! Call 911 now.   Multiple   spaces."
 
 
 @pytest.fixture

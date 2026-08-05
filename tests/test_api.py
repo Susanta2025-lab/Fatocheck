@@ -49,9 +49,7 @@ class TestRootEndpoint:
         assert "bert" not in body["available_models"]
 
     def test_available_models_reporting_includes_bert(self, client, monkeypatch):
-        monkeypatch.setattr(
-            app_module, "health_check", lambda: _status(bert_artifact_available=True)
-        )
+        monkeypatch.setattr(app_module, "health_check", lambda: _status(bert_artifact_available=True))
 
         response = client.get("/")
 
@@ -89,9 +87,7 @@ class TestReadyEndpoint:
         assert response.json() == {"status": "ready"}
 
     def test_readiness_returns_503_when_xgboost_unavailable(self, client, monkeypatch):
-        monkeypatch.setattr(
-            app_module, "health_check", lambda: _status(xgboost_available=False)
-        )
+        monkeypatch.setattr(app_module, "health_check", lambda: _status(xgboost_available=False))
 
         response = client.get("/ready")
 
@@ -107,9 +103,7 @@ class TestModelsEndpoint:
             (False, False, "unavailable"),
         ],
     )
-    def test_bert_metadata_states(
-        self, client, monkeypatch, bert_loaded, bert_artifact_available, expected_status
-    ):
+    def test_bert_metadata_states(self, client, monkeypatch, bert_loaded, bert_artifact_available, expected_status):
         monkeypatch.setattr(
             app_module,
             "health_check",
@@ -124,9 +118,7 @@ class TestModelsEndpoint:
         assert response.json()["models"]["bert"]["status"] == expected_status
 
     def test_xgboost_metadata_unavailable_state(self, client, monkeypatch):
-        monkeypatch.setattr(
-            app_module, "health_check", lambda: _status(xgboost_available=False)
-        )
+        monkeypatch.setattr(app_module, "health_check", lambda: _status(xgboost_available=False))
 
         response = client.get("/models")
 
@@ -134,16 +126,10 @@ class TestModelsEndpoint:
 
 
 class TestPredictEndpoint:
-    def test_successful_xgboost_prediction(
-        self, client, monkeypatch, sample_prediction_result
-    ):
-        monkeypatch.setattr(
-            app_module, "predict_news", lambda text, model_type: sample_prediction_result
-        )
+    def test_successful_xgboost_prediction(self, client, monkeypatch, sample_prediction_result):
+        monkeypatch.setattr(app_module, "predict_news", lambda text, model_type: sample_prediction_result)
 
-        response = client.post(
-            "/predict", json={"text": "Some news text", "model": "xgboost"}
-        )
+        response = client.post("/predict", json={"text": "Some news text", "model": "xgboost"})
 
         assert response.status_code == 200
         body = response.json()
@@ -159,9 +145,7 @@ class TestPredictEndpoint:
         }
         monkeypatch.setattr(app_module, "predict_news", lambda text, model_type: expected)
 
-        response = client.post(
-            "/predict", json={"text": "Some news text", "model": "bert"}
-        )
+        response = client.post("/predict", json={"text": "Some news text", "model": "bert"})
 
         assert response.status_code == 200
         assert response.json()["result"] == expected
@@ -177,9 +161,7 @@ class TestPredictEndpoint:
         assert response.status_code == 422
 
     def test_invalid_model_name_rejected_by_schema(self, client):
-        response = client.post(
-            "/predict", json={"text": "Some text", "model": "not-a-model"}
-        )
+        response = client.post("/predict", json={"text": "Some text", "model": "not-a-model"})
 
         assert response.status_code == 422
 

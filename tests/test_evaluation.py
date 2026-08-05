@@ -154,14 +154,10 @@ class TestEvaluationVisualizer:
         assert output_dir.exists()
         assert list(output_dir.iterdir()) == []
 
-        cm_result = ConfusionMatrixResult(
-            tn=5, fp=1, fn=2, tp=8, matrix=np.array([[5, 1], [2, 8]])
-        )
+        cm_result = ConfusionMatrixResult(tn=5, fp=1, fn=2, tp=8, matrix=np.array([[5, 1], [2, 8]]))
 
         try:
-            saved_path = visualizer.plot_confusion_matrix(
-                cm_result, model_name="unit-test-model"
-            )
+            saved_path = visualizer.plot_confusion_matrix(cm_result, model_name="unit-test-model")
             assert Path(saved_path).exists()
         finally:
             plt.close("all")

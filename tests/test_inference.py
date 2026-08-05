@@ -76,12 +76,8 @@ class TestPredictXGBoost:
         }
         assert result["model"] == "xgboost"
 
-    def test_confidence_matches_predicted_class_real(
-        self, monkeypatch, make_mock_xgboost_pipeline
-    ):
-        pipeline = make_mock_xgboost_pipeline(
-            predicted_class=1, probabilities=(0.13, 0.87), classes=(0, 1)
-        )
+    def test_confidence_matches_predicted_class_real(self, monkeypatch, make_mock_xgboost_pipeline):
+        pipeline = make_mock_xgboost_pipeline(predicted_class=1, probabilities=(0.13, 0.87), classes=(0, 1))
         monkeypatch.setattr(inference, "xgboost_model", pipeline)
 
         result = inference.predict_xgboost("Some article text")
@@ -89,12 +85,8 @@ class TestPredictXGBoost:
         assert result["prediction"] == "Real"
         assert result["confidence"] == pytest.approx(0.87)
 
-    def test_confidence_matches_predicted_class_fake(
-        self, monkeypatch, make_mock_xgboost_pipeline
-    ):
-        pipeline = make_mock_xgboost_pipeline(
-            predicted_class=0, probabilities=(0.91, 0.09), classes=(0, 1)
-        )
+    def test_confidence_matches_predicted_class_fake(self, monkeypatch, make_mock_xgboost_pipeline):
+        pipeline = make_mock_xgboost_pipeline(predicted_class=0, probabilities=(0.91, 0.09), classes=(0, 1))
         monkeypatch.setattr(inference, "xgboost_model", pipeline)
 
         result = inference.predict_xgboost("Some article text")
@@ -116,9 +108,7 @@ class TestBertArtifactChecks:
 
         assert inference.is_bert_artifact_available() is True
 
-    def test_artifact_unavailable_without_weight_file(
-        self, monkeypatch, make_bert_artifact_dir
-    ):
+    def test_artifact_unavailable_without_weight_file(self, monkeypatch, make_bert_artifact_dir):
         bert_dir = make_bert_artifact_dir(weight_file=None)
         monkeypatch.setattr(inference, "BERT_MODEL_PATH", bert_dir)
 
@@ -129,9 +119,7 @@ class TestBertArtifactChecks:
 
         assert inference.is_bert_artifact_available() is False
 
-    def test_incomplete_artifact_reports_missing_files_clearly(
-        self, monkeypatch, make_bert_artifact_dir
-    ):
+    def test_incomplete_artifact_reports_missing_files_clearly(self, monkeypatch, make_bert_artifact_dir):
         bert_dir = make_bert_artifact_dir(include_tokenizer=False)
         monkeypatch.setattr(inference, "BERT_MODEL_PATH", bert_dir)
 
@@ -174,9 +162,7 @@ class TestPredictBert:
             def __call__(self, **inputs):
                 return FakeOutput(torch.tensor([[0.1, 2.5]]))
 
-        monkeypatch.setattr(
-            inference, "load_bert_model", lambda: (FakeTokenizer(), FakeModel())
-        )
+        monkeypatch.setattr(inference, "load_bert_model", lambda: (FakeTokenizer(), FakeModel()))
 
         result = inference.predict_bert(sample_text)
 
@@ -240,9 +226,7 @@ def test_real_xgboost_artifact_predicts():
 
     try:
         real_model = joblib.load(inference.XGBOOST_MODEL_PATH)
-        prediction = real_model.predict(
-            ["A neutral sample sentence about a routine economic report."]
-        )
+        prediction = real_model.predict(["A neutral sample sentence about a routine economic report."])
     except Exception as exc:  # pragma: no cover - environment-dependent
         pytest.skip(f"Could not load/run real XGBoost artifact: {exc}")
 

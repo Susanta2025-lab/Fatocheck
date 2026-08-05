@@ -10,40 +10,39 @@ This module provides end-to-end training utilities for:
 3. Model serialization and evaluation
 """
 
-import pandas as pd
-import logging
 import json
-from pathlib import Path
+import logging
 from datetime import datetime
-from typing import Tuple, Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
-# ML Libraries
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    classification_report, roc_auc_score
-)
-from sklearn.pipeline import Pipeline
 import joblib
-import xgboost as xgb
+import pandas as pd
 
 # Deep Learning
 import torch
-from torch.utils.data import TensorDataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-    Trainer,
-    TrainingArguments
+import xgboost as xgb
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
 )
+
+# ML Libraries
+from sklearn.model_selection import RandomizedSearchCV, train_test_split
+from sklearn.pipeline import Pipeline
+from torch.utils.data import TensorDataset
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
 
 # Utils
 from utils.preprocessing import TextPreprocessor
 from utils.settings import configure_logging, get_settings
-
 
 # =====================================
 # Configuration & Logging
@@ -64,6 +63,7 @@ logger = logging.getLogger(__name__)
 # Classical ML Training
 # =====================================
 
+
 class ClassicalMLTrainer:
     """Train classical ML models (Logistic Regression, Random Forest, XGBoost)"""
 
@@ -79,15 +79,15 @@ class ClassicalMLTrainer:
 
         logger.info(f"Loading data from {filepath}")
 
-        if filepath.endswith('.csv'):
+        if filepath.endswith(".csv"):
             df = pd.read_csv(filepath)
-        elif filepath.endswith('.json'):
+        elif filepath.endswith(".json"):
             df = pd.read_json(filepath)
         else:
             raise ValueError("Unsupported file format. Use .csv or .json")
 
         # Validate required columns
-        if 'title' not in df.columns or 'text' not in df.columns or 'label' not in df.columns:
+        if "title" not in df.columns or "text" not in df.columns or "label" not in df.columns:
             raise ValueError("DataFrame must contain 'title', 'text', and 'label' columns")
 
         logger.info(f"Loaded {len(df)} samples")
@@ -96,8 +96,8 @@ class ClassicalMLTrainer:
         df = self.preprocessor.preprocess_dataframe(df)
 
         # Split data
-        X = df['content']
-        y = df['label']
+        X = df["content"]
+        y = df["label"]
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=self.random_state, stratify=y
@@ -114,14 +114,14 @@ class ClassicalMLTrainer:
 
         # Default XGBoost parameters
         default_params = {
-            'n_estimators': 200,
-            'max_depth': 7,
-            'learning_rate': 0.1,
-            'subsample': 0.8,
-            'colsample_bytree': 0.8,
-            'random_state': self.random_state,
-            'objective': 'binary:logistic',
-            'eval_metric': 'logloss'
+            "n_estimators": 200,
+            "max_depth": 7,
+            "learning_rate": 0.1,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "random_state": self.random_state,
+            "objective": "binary:logistic",
+            "eval_metric": "logloss",
         }
 
         # Update with provided params
@@ -129,22 +129,14 @@ class ClassicalMLTrainer:
 
         # TF-IDF Vectorizer
         vectorizer = TfidfVectorizer(
-            max_features=10000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-            lowercase=True,
-            stop_words='english'
+            max_features=10000, ngram_range=(1, 2), min_df=5, max_df=0.8, lowercase=True, stop_words="english"
         )
 
         # XGBoost classifier
         xgb_clf = xgb.XGBClassifier(**default_params)
 
         # Create pipeline
-        pipeline = Pipeline([
-            ('tfidf', vectorizer),
-            ('xgboost', xgb_clf)
-        ])
+        pipeline = Pipeline([("tfidf", vectorizer), ("xgboost", xgb_clf)])
 
         self.vectorizer = vectorizer
         self.model = pipeline
@@ -157,24 +149,12 @@ class ClassicalMLTrainer:
         logger.info("Building TF-IDF + Logistic Regression pipeline")
 
         vectorizer = TfidfVectorizer(
-            max_features=10000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-            lowercase=True,
-            stop_words='english'
+            max_features=10000, ngram_range=(1, 2), min_df=5, max_df=0.8, lowercase=True, stop_words="english"
         )
 
-        lr_clf = LogisticRegression(
-            max_iter=1000,
-            random_state=self.random_state,
-            n_jobs=-1
-        )
+        lr_clf = LogisticRegression(max_iter=1000, random_state=self.random_state, n_jobs=-1)
 
-        pipeline = Pipeline([
-            ('tfidf', vectorizer),
-            ('logistic_regression', lr_clf)
-        ])
+        pipeline = Pipeline([("tfidf", vectorizer), ("logistic_regression", lr_clf)])
 
         self.vectorizer = vectorizer
         self.model = pipeline
@@ -187,25 +167,12 @@ class ClassicalMLTrainer:
         logger.info("Building TF-IDF + Random Forest pipeline")
 
         vectorizer = TfidfVectorizer(
-            max_features=10000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-            lowercase=True,
-            stop_words='english'
+            max_features=10000, ngram_range=(1, 2), min_df=5, max_df=0.8, lowercase=True, stop_words="english"
         )
 
-        rf_clf = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=20,
-            random_state=self.random_state,
-            n_jobs=-1
-        )
+        rf_clf = RandomForestClassifier(n_estimators=200, max_depth=20, random_state=self.random_state, n_jobs=-1)
 
-        pipeline = Pipeline([
-            ('tfidf', vectorizer),
-            ('random_forest', rf_clf)
-        ])
+        pipeline = Pipeline([("tfidf", vectorizer), ("random_forest", rf_clf)])
 
         self.vectorizer = vectorizer
         self.model = pipeline
@@ -228,11 +195,11 @@ class ClassicalMLTrainer:
         y_proba = self.model.predict_proba(X_test)[:, 1]
 
         metrics = {
-            'accuracy': accuracy_score(y_test, y_pred),
-            'precision': precision_score(y_test, y_pred, zero_division=0),
-            'recall': recall_score(y_test, y_pred, zero_division=0),
-            'f1': f1_score(y_test, y_pred, zero_division=0),
-            'roc_auc': roc_auc_score(y_test, y_proba)
+            "accuracy": accuracy_score(y_test, y_pred),
+            "precision": precision_score(y_test, y_pred, zero_division=0),
+            "recall": recall_score(y_test, y_pred, zero_division=0),
+            "f1": f1_score(y_test, y_pred, zero_division=0),
+            "roc_auc": roc_auc_score(y_test, y_proba),
         }
 
         self.metrics = metrics
@@ -242,7 +209,7 @@ class ClassicalMLTrainer:
             logger.info(f"  {metric}: {value:.4f}")
 
         logger.info("\nClassification Report:")
-        logger.info(classification_report(y_test, y_pred, target_names=['FAKE', 'REAL']))
+        logger.info(classification_report(y_test, y_pred, target_names=["FAKE", "REAL"]))
 
         return metrics
 
@@ -260,7 +227,7 @@ class ClassicalMLTrainer:
 
         # Save metrics
         metrics_file = filepath.parent / f"{filepath.stem}_metrics.json"
-        with open(metrics_file, 'w') as f:
+        with open(metrics_file, "w") as f:
             json.dump(self.metrics, f, indent=2)
 
         logger.info(f"Metrics saved to {metrics_file}")
@@ -276,6 +243,7 @@ class ClassicalMLTrainer:
 # BERT Transformer Training
 # =====================================
 
+
 class BertTrainer:
     """Fine-tune BERT for fake news detection"""
 
@@ -286,7 +254,7 @@ class BertTrainer:
         batch_size: int = 8,
         num_epochs: int = 3,
         learning_rate: float = 2e-5,
-        random_state: int = 42
+        random_state: int = 42,
     ):
         self.model_name = model_name
         self.max_length = max_length
@@ -296,14 +264,12 @@ class BertTrainer:
         self.random_state = random_state
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_name, num_labels=2
-        )
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
         self.preprocessor = TextPreprocessor()
         self.metrics = {}
 
         # Device management
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
         logger.info(f"Using device: {self.device}")
@@ -313,9 +279,9 @@ class BertTrainer:
 
         logger.info(f"Loading data from {filepath}")
 
-        if filepath.endswith('.csv'):
+        if filepath.endswith(".csv"):
             df = pd.read_csv(filepath)
-        elif filepath.endswith('.json'):
+        elif filepath.endswith(".json"):
             df = pd.read_json(filepath)
         else:
             raise ValueError("Unsupported file format")
@@ -323,8 +289,8 @@ class BertTrainer:
         # Preprocess
         df = self.preprocessor.preprocess_dataframe(df)
 
-        X = df['content'].tolist()
-        y = df['label'].tolist()
+        X = df["content"].tolist()
+        y = df["label"].tolist()
 
         # Split
         X_train, X_test, y_train, y_test = train_test_split(
@@ -337,13 +303,8 @@ class BertTrainer:
         logger.info("Tokenizing texts...")
 
         def tokenize_function(texts, labels):
-            encodings = self.tokenizer(
-                texts,
-                max_length=self.max_length,
-                truncation=True,
-                padding='max_length'
-            )
-            encodings['labels'] = labels
+            encodings = self.tokenizer(texts, max_length=self.max_length, truncation=True, padding="max_length")
+            encodings["labels"] = labels
             return encodings
 
         train_encodings = tokenize_function(X_train, y_train)
@@ -351,15 +312,15 @@ class BertTrainer:
 
         # Convert to PyTorch datasets
         train_dataset = TensorDataset(
-            torch.tensor(train_encodings['input_ids']),
-            torch.tensor(train_encodings['attention_mask']),
-            torch.tensor(train_encodings['labels'])
+            torch.tensor(train_encodings["input_ids"]),
+            torch.tensor(train_encodings["attention_mask"]),
+            torch.tensor(train_encodings["labels"]),
         )
 
         test_dataset = TensorDataset(
-            torch.tensor(test_encodings['input_ids']),
-            torch.tensor(test_encodings['attention_mask']),
-            torch.tensor(test_encodings['labels'])
+            torch.tensor(test_encodings["input_ids"]),
+            torch.tensor(test_encodings["attention_mask"]),
+            torch.tensor(test_encodings["labels"]),
         )
 
         return train_dataset, test_dataset
@@ -383,7 +344,7 @@ class BertTrainer:
             save_strategy="epoch",
             load_best_model_at_end=True,
             learning_rate=self.learning_rate,
-            seed=self.random_state
+            seed=self.random_state,
         )
 
         # Trainer
@@ -392,7 +353,7 @@ class BertTrainer:
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
-            tokenizer=self.tokenizer
+            tokenizer=self.tokenizer,
         )
 
         # Train
@@ -431,13 +392,14 @@ class BertTrainer:
 
         # Save metrics
         metrics_file = filepath / "metrics.json"
-        with open(metrics_file, 'w') as f:
+        with open(metrics_file, "w") as f:
             json.dump(self.metrics, f, indent=2)
 
 
 # =====================================
 # Training Pipeline Orchestration
 # =====================================
+
 
 class TrainingPipeline:
     """Orchestrate end-to-end model training"""
@@ -449,109 +411,90 @@ class TrainingPipeline:
     def train_xgboost(self, **xgb_params) -> Dict[str, Any]:
         """Train XGBoost model"""
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("TRAINING: XGBoost Pipeline")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         trainer = ClassicalMLTrainer()
         X_train, X_test, y_train, y_test = trainer.load_data(self.data_filepath)
 
-        pipeline = trainer.build_xgboost_pipeline(**xgb_params)
+        trainer.build_xgboost_pipeline(**xgb_params)
         trainer.train(X_train, y_train)
         metrics = trainer.evaluate(X_test, y_test)
         trainer.save_model()
 
-        self.results['xgboost'] = {
-            'model': trainer.model,
-            'metrics': metrics
-        }
+        self.results["xgboost"] = {"model": trainer.model, "metrics": metrics}
 
         return metrics
 
     def train_logistic_regression(self) -> Dict[str, Any]:
         """Train Logistic Regression model"""
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("TRAINING: Logistic Regression Pipeline")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         trainer = ClassicalMLTrainer()
         X_train, X_test, y_train, y_test = trainer.load_data(self.data_filepath)
 
-        pipeline = trainer.build_logistic_regression_pipeline()
+        trainer.build_logistic_regression_pipeline()
         trainer.train(X_train, y_train)
         metrics = trainer.evaluate(X_test, y_test)
         trainer.save_model(MODELS_DIR / "logistic_regression_pipeline.joblib")
 
-        self.results['logistic_regression'] = {
-            'model': trainer.model,
-            'metrics': metrics
-        }
+        self.results["logistic_regression"] = {"model": trainer.model, "metrics": metrics}
 
         return metrics
 
     def train_random_forest(self) -> Dict[str, Any]:
         """Train Random Forest model"""
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("TRAINING: Random Forest Pipeline")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         trainer = ClassicalMLTrainer()
         X_train, X_test, y_train, y_test = trainer.load_data(self.data_filepath)
 
-        pipeline = trainer.build_random_forest_pipeline()
+        trainer.build_random_forest_pipeline()
         trainer.train(X_train, y_train)
         metrics = trainer.evaluate(X_test, y_test)
         trainer.save_model(MODELS_DIR / "random_forest_pipeline.joblib")
 
-        self.results['random_forest'] = {
-            'model': trainer.model,
-            'metrics': metrics
-        }
+        self.results["random_forest"] = {"model": trainer.model, "metrics": metrics}
 
         return metrics
 
     def train_bert(
-        self,
-        model_name: str = "bert-base-uncased",
-        num_epochs: int = 3,
-        batch_size: int = 8
+        self, model_name: str = "bert-base-uncased", num_epochs: int = 3, batch_size: int = 8
     ) -> Dict[str, Any]:
         """Train BERT model"""
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("TRAINING: BERT Transformer")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
-        trainer = BertTrainer(
-            model_name=model_name,
-            num_epochs=num_epochs,
-            batch_size=batch_size
-        )
+        trainer = BertTrainer(model_name=model_name, num_epochs=num_epochs, batch_size=batch_size)
 
         train_dataset, test_dataset = trainer.load_data(self.data_filepath)
         bert_trainer = trainer.train(train_dataset, test_dataset)
         metrics = trainer.evaluate(bert_trainer, test_dataset)
         trainer.save_model()
 
-        self.results['bert'] = {
-            'model': trainer.model,
-            'metrics': metrics
-        }
+        self.results["bert"] = {"model": trainer.model, "metrics": metrics}
 
         return metrics
 
     def get_summary(self) -> Dict[str, Any]:
         """Get training summary"""
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("TRAINING SUMMARY")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         summary = {}
         for model_name, result in self.results.items():
-            summary[model_name] = result.get('metrics', {})
+            summary[model_name] = result.get("metrics", {})
             logger.info(f"\n{model_name.upper()}:")
             for metric, value in summary[model_name].items():
                 logger.info(f"  {metric}: {value:.4f}")
@@ -571,6 +514,7 @@ class TrainingPipeline:
 # actually used in notebooks/02_classical_ml.ipynb. utils.evaluation
 # re-exports this class so existing imports keep working.
 
+
 class HyperparameterTuner:
     """Optimize model hyperparameters using RandomizedSearchCV"""
 
@@ -580,13 +524,7 @@ class HyperparameterTuner:
         self.search_results = None
         self.cv_results = None
 
-    def tune_logistic_regression(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
+    def tune_logistic_regression(self, X_train, y_train, n_iter: int = 10, cv: int = 5) -> Dict[str, Any]:
         """
         Tune Logistic Regression with RandomizedSearchCV
 
@@ -601,10 +539,7 @@ class HyperparameterTuner:
         """
         logger.info("Starting Logistic Regression hyperparameter tuning...")
 
-        param_distributions = {
-            'C': [0.01, 0.1, 1, 10, 100],
-            'penalty': ['l1', 'l2']
-        }
+        param_distributions = {"C": [0.01, 0.1, 1, 10, 100], "penalty": ["l1", "l2"]}
 
         log_reg = LogisticRegression(solver="liblinear", random_state=42)
 
@@ -615,7 +550,7 @@ class HyperparameterTuner:
             cv=cv,
             verbose=1,
             n_jobs=-1,
-            random_state=42
+            random_state=42,
         )
 
         random_search.fit(X_train, y_train)
@@ -628,18 +563,12 @@ class HyperparameterTuner:
         logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
 
         return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
+            "best_params": self.best_params,
+            "best_score": self.best_score,
+            "best_estimator": random_search.best_estimator_,
         }
 
-    def tune_random_forest(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
+    def tune_random_forest(self, X_train, y_train, n_iter: int = 10, cv: int = 5) -> Dict[str, Any]:
         """
         Tune Random Forest with RandomizedSearchCV
 
@@ -655,10 +584,10 @@ class HyperparameterTuner:
         logger.info("Starting Random Forest hyperparameter tuning...")
 
         param_distributions = {
-            'n_estimators': [100, 150, 200],
-            'max_depth': [10, 20, 30],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4]
+            "n_estimators": [100, 150, 200],
+            "max_depth": [10, 20, 30],
+            "min_samples_split": [2, 5, 10],
+            "min_samples_leaf": [1, 2, 4],
         }
 
         rf_model = RandomForestClassifier(random_state=42)
@@ -670,7 +599,7 @@ class HyperparameterTuner:
             cv=cv,
             verbose=1,
             n_jobs=-1,
-            random_state=42
+            random_state=42,
         )
 
         random_search.fit(X_train, y_train)
@@ -683,18 +612,12 @@ class HyperparameterTuner:
         logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
 
         return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
+            "best_params": self.best_params,
+            "best_score": self.best_score,
+            "best_estimator": random_search.best_estimator_,
         }
 
-    def tune_xgboost(
-        self,
-        X_train,
-        y_train,
-        n_iter: int = 10,
-        cv: int = 5
-    ) -> Dict[str, Any]:
+    def tune_xgboost(self, X_train, y_train, n_iter: int = 10, cv: int = 5) -> Dict[str, Any]:
         """
         Tune XGBoost with RandomizedSearchCV
 
@@ -710,21 +633,17 @@ class HyperparameterTuner:
         logger.info("Starting XGBoost hyperparameter tuning...")
 
         param_distributions = {
-            'n_estimators': [100, 150, 200],
-            'max_depth': [5, 7, 10],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'subsample': [0.7, 0.8, 0.9],
-            'colsample_bytree': [0.7, 0.8, 0.9]
+            "n_estimators": [100, 150, 200],
+            "max_depth": [5, 7, 10],
+            "learning_rate": [0.01, 0.05, 0.1],
+            "subsample": [0.7, 0.8, 0.9],
+            "colsample_bytree": [0.7, 0.8, 0.9],
         }
 
         # NOTE: `use_label_encoder` was dropped here. It was deprecated by
         # xgboost and is unsupported under the pinned xgboost==3.2.0; this
         # tuner path is not invoked by any current model artifact.
-        xgb_model = xgb.XGBClassifier(
-            objective='binary:logistic',
-            eval_metric='logloss',
-            random_state=42
-        )
+        xgb_model = xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss", random_state=42)
 
         random_search = RandomizedSearchCV(
             estimator=xgb_model,
@@ -733,7 +652,7 @@ class HyperparameterTuner:
             cv=cv,
             verbose=1,
             n_jobs=-1,
-            random_state=42
+            random_state=42,
         )
 
         random_search.fit(X_train, y_train)
@@ -746,9 +665,9 @@ class HyperparameterTuner:
         logger.info(f"Best Cross-Validation Score: {self.best_score:.4f}")
 
         return {
-            'best_params': self.best_params,
-            'best_score': self.best_score,
-            'best_estimator': random_search.best_estimator_
+            "best_params": self.best_params,
+            "best_score": self.best_score,
+            "best_estimator": random_search.best_estimator_,
         }
 
     def get_cv_results_dataframe(self) -> pd.DataFrame:
@@ -763,7 +682,7 @@ class HyperparameterTuner:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.cv_results)
-        return df[['param_' + key for key in self.best_params.keys()] + ['mean_test_score', 'std_test_score']]
+        return df[["param_" + key for key in self.best_params.keys()] + ["mean_test_score", "std_test_score"]]
 
 
 # =====================================
@@ -780,15 +699,23 @@ if __name__ == "__main__":
     )
 
     parser = argparse.ArgumentParser(description="Train Fatocheck models")
-    parser.add_argument('--data', type=str, required=True, help='Path to training data')
-    parser.add_argument('--model', type=str, default='xgboost',
-                       choices=['xgboost', 'logistic_regression', 'random_forest', 'bert', 'all'],
-                       help='Model to train')
-    parser.add_argument('--bert_model', type=str, default='bert-base-uncased',
-                       help='BERT model variant')
-    parser.add_argument('--epochs', type=int, default=3, help='Number of epochs for BERT')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
-    parser.add_argument('--tune', action='store_true', help='Perform hyperparameter tuning')
+    parser.add_argument("--data", type=str, required=True, help="Path to training data")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="xgboost",
+        choices=["xgboost", "logistic_regression", "random_forest", "bert", "all"],
+        help="Model to train",
+    )
+    parser.add_argument(
+        "--bert_model",
+        type=str,
+        default="bert-base-uncased",
+        help="BERT model variant",
+    )
+    parser.add_argument("--epochs", type=int, default=3, help="Number of epochs for BERT")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
+    parser.add_argument("--tune", action="store_true", help="Perform hyperparameter tuning")
 
     args = parser.parse_args()
 
@@ -796,21 +723,17 @@ if __name__ == "__main__":
     pipeline = TrainingPipeline(args.data)
 
     # Train models
-    if args.model in ['xgboost', 'all']:
+    if args.model in ["xgboost", "all"]:
         pipeline.train_xgboost()
 
-    if args.model in ['logistic_regression', 'all']:
+    if args.model in ["logistic_regression", "all"]:
         pipeline.train_logistic_regression()
 
-    if args.model in ['random_forest', 'all']:
+    if args.model in ["random_forest", "all"]:
         pipeline.train_random_forest()
 
-    if args.model in ['bert', 'all']:
-        pipeline.train_bert(
-            model_name=args.bert_model,
-            num_epochs=args.epochs,
-            batch_size=args.batch_size
-        )
+    if args.model in ["bert", "all"]:
+        pipeline.train_bert(model_name=args.bert_model, num_epochs=args.epochs, batch_size=args.batch_size)
 
     # Get summary
     summary = pipeline.get_summary()

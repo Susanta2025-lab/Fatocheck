@@ -14,21 +14,26 @@ Hyperparameter tuning (RandomizedSearchCV) lives in utils.training.
 HyperparameterTuner is re-exported from here for backward compatibility.
 """
 
+import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import logging
-import json
-import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-from datetime import datetime
-from typing import Tuple, Dict, Any, List, Optional
-from dataclasses import dataclass
 
 # ML & Statistics Libraries
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
 )
 
 # Project utilities
@@ -39,7 +44,6 @@ from utils.settings import configure_logging, get_settings
 # for training/tuning logic); re-exported here for backward compatibility
 # with any existing `from utils.evaluation import HyperparameterTuner`.
 from utils.training import HyperparameterTuner  # noqa: F401
-
 
 # =====================================
 # Configuration & Logging
@@ -61,9 +65,11 @@ logger = logging.getLogger(__name__)
 # Data Classes for Results
 # =====================================
 
+
 @dataclass
 class ClassificationMetrics:
     """Container for classification metrics"""
+
     accuracy: float
     precision_fake: float
     recall_fake: float
@@ -78,16 +84,16 @@ class ClassificationMetrics:
     def to_dict(self) -> Dict[str, float]:
         """Convert to dictionary"""
         return {
-            'accuracy': self.accuracy,
-            'precision_fake': self.precision_fake,
-            'recall_fake': self.recall_fake,
-            'f1_fake': self.f1_fake,
-            'precision_real': self.precision_real,
-            'recall_real': self.recall_real,
-            'f1_real': self.f1_real,
-            'precision_weighted': self.precision_weighted,
-            'recall_weighted': self.recall_weighted,
-            'f1_weighted': self.f1_weighted
+            "accuracy": self.accuracy,
+            "precision_fake": self.precision_fake,
+            "recall_fake": self.recall_fake,
+            "f1_fake": self.f1_fake,
+            "precision_real": self.precision_real,
+            "recall_real": self.recall_real,
+            "f1_real": self.f1_real,
+            "precision_weighted": self.precision_weighted,
+            "recall_weighted": self.recall_weighted,
+            "f1_weighted": self.f1_weighted,
         }
 
     def __str__(self) -> str:
@@ -116,6 +122,7 @@ Classification Metrics:
 @dataclass
 class ConfusionMatrixResult:
     """Container for confusion matrix data"""
+
     tn: int  # True Negatives (Fake correctly classified)
     fp: int  # False Positives (Real classified as Fake)
     fn: int  # False Negatives (Fake classified as Real)
@@ -136,6 +143,7 @@ Actual Real   {self.fn:<15} {self.tp:<15}
 # Core Evaluation Class
 # =====================================
 
+
 class ModelEvaluator:
     """Comprehensive model evaluation framework"""
 
@@ -153,11 +161,7 @@ class ModelEvaluator:
         self.metrics = None
         self.confusion_matrix_result = None
 
-    def compute_metrics(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray
-    ) -> ClassificationMetrics:
+    def compute_metrics(self, y_true: np.ndarray, y_pred: np.ndarray) -> ClassificationMetrics:
         """
         Compute classification metrics with per-class breakdown
 
@@ -176,20 +180,15 @@ class ModelEvaluator:
         # Overall accuracy
         accuracy = accuracy_score(y_true, y_pred)
 
-        # Per-class metrics
-        precision_macro = precision_score(y_true, y_pred, average='macro', zero_division=0)
-        recall_macro = recall_score(y_true, y_pred, average='macro', zero_division=0)
-        f1_macro = f1_score(y_true, y_pred, average='macro', zero_division=0)
-
         # Per-class breakdown (0=Fake, 1=Real)
         precision_per_class = precision_score(y_true, y_pred, average=None, zero_division=0)
         recall_per_class = recall_score(y_true, y_pred, average=None, zero_division=0)
         f1_per_class = f1_score(y_true, y_pred, average=None, zero_division=0)
 
         # Weighted metrics
-        precision_weighted = precision_score(y_true, y_pred, average='weighted', zero_division=0)
-        recall_weighted = recall_score(y_true, y_pred, average='weighted', zero_division=0)
-        f1_weighted = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+        precision_weighted = precision_score(y_true, y_pred, average="weighted", zero_division=0)
+        recall_weighted = recall_score(y_true, y_pred, average="weighted", zero_division=0)
+        f1_weighted = f1_score(y_true, y_pred, average="weighted", zero_division=0)
 
         metrics = ClassificationMetrics(
             accuracy=accuracy,
@@ -201,7 +200,7 @@ class ModelEvaluator:
             f1_real=f1_per_class[1],
             precision_weighted=precision_weighted,
             recall_weighted=recall_weighted,
-            f1_weighted=f1_weighted
+            f1_weighted=f1_weighted,
         )
 
         self.metrics = metrics
@@ -209,11 +208,7 @@ class ModelEvaluator:
 
         return metrics
 
-    def compute_confusion_matrix(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray
-    ) -> ConfusionMatrixResult:
+    def compute_confusion_matrix(self, y_true: np.ndarray, y_pred: np.ndarray) -> ConfusionMatrixResult:
         """
         Compute confusion matrix
 
@@ -236,13 +231,7 @@ class ModelEvaluator:
         else:
             tn = fp = fn = tp = 0
 
-        result = ConfusionMatrixResult(
-            tn=int(tn),
-            fp=int(fp),
-            fn=int(fn),
-            tp=int(tp),
-            matrix=cm
-        )
+        result = ConfusionMatrixResult(tn=int(tn), fp=int(fp), fn=int(fn), tp=int(tp), matrix=cm)
 
         self.confusion_matrix_result = result
         logger.info(f"Confusion matrix:\n{result}")
@@ -250,10 +239,7 @@ class ModelEvaluator:
         return result
 
     def generate_classification_report(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        target_names: List[str] = None
+        self, y_true: np.ndarray, y_pred: np.ndarray, target_names: List[str] = None
     ) -> str:
         """
         Generate detailed classification report
@@ -267,7 +253,7 @@ class ModelEvaluator:
             Classification report string
         """
         if target_names is None:
-            target_names = ['Fake', 'Real']
+            target_names = ["Fake", "Real"]
 
         report = classification_report(y_true, y_pred, target_names=target_names)
         logger.info(f"Classification Report:\n{report}")
@@ -291,18 +277,22 @@ class ModelEvaluator:
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
         results = {
-            'model_name': self.model_name,
-            'timestamp': datetime.now().isoformat(),
-            'metrics': self.metrics.to_dict() if self.metrics else {},
-            'confusion_matrix': {
-                'tn': self.confusion_matrix_result.tn,
-                'fp': self.confusion_matrix_result.fp,
-                'fn': self.confusion_matrix_result.fn,
-                'tp': self.confusion_matrix_result.tp
-            } if self.confusion_matrix_result else {}
+            "model_name": self.model_name,
+            "timestamp": datetime.now().isoformat(),
+            "metrics": self.metrics.to_dict() if self.metrics else {},
+            "confusion_matrix": (
+                {
+                    "tn": self.confusion_matrix_result.tn,
+                    "fp": self.confusion_matrix_result.fp,
+                    "fn": self.confusion_matrix_result.fn,
+                    "tp": self.confusion_matrix_result.tp,
+                }
+                if self.confusion_matrix_result
+                else {}
+            ),
         }
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(results, f, indent=2)
 
         logger.info(f"Results saved to {filepath}")
@@ -314,6 +304,7 @@ class ModelEvaluator:
 # Visualization Functions
 # =====================================
 
+
 class EvaluationVisualizer:
     """Create publication-quality evaluation plots"""
 
@@ -321,13 +312,13 @@ class EvaluationVisualizer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         sns.set_style("whitegrid")
-        plt.rcParams['figure.figsize'] = (10, 6)
+        plt.rcParams["figure.figsize"] = (10, 6)
 
     def plot_confusion_matrix(
         self,
         confusion_matrix_result: ConfusionMatrixResult,
         model_name: str = "Model",
-        figsize: Tuple[int, int] = (8, 6)
+        figsize: Tuple[int, int] = (8, 6),
     ) -> str:
         """
         Plot confusion matrix heatmap
@@ -346,21 +337,21 @@ class EvaluationVisualizer:
         sns.heatmap(
             cm,
             annot=True,
-            fmt='d',
-            cmap='Blues',
+            fmt="d",
+            cmap="Blues",
             cbar=True,
             ax=ax,
-            xticklabels=['Fake', 'Real'],
-            yticklabels=['Fake', 'Real']
+            xticklabels=["Fake", "Real"],
+            yticklabels=["Fake", "Real"],
         )
 
-        ax.set_title(f'Confusion Matrix - {model_name}', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Actual Label', fontsize=12)
-        ax.set_xlabel('Predicted Label', fontsize=12)
+        ax.set_title(f"Confusion Matrix - {model_name}", fontsize=14, fontweight="bold")
+        ax.set_ylabel("Actual Label", fontsize=12)
+        ax.set_xlabel("Predicted Label", fontsize=12)
 
         filepath = self.output_dir / f"{model_name}_confusion_matrix.png"
         plt.tight_layout()
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        plt.savefig(filepath, dpi=300, bbox_inches="tight")
         plt.close()
 
         logger.info(f"Confusion matrix plot saved to {filepath}")
@@ -368,9 +359,7 @@ class EvaluationVisualizer:
         return str(filepath)
 
     def plot_metrics_comparison(
-        self,
-        metrics_dict: Dict[str, ClassificationMetrics],
-        figsize: Tuple[int, int] = (12, 6)
+        self, metrics_dict: Dict[str, ClassificationMetrics], figsize: Tuple[int, int] = (12, 6)
     ) -> str:
         """
         Plot metrics comparison across multiple models
@@ -386,29 +375,29 @@ class EvaluationVisualizer:
         data = []
         for model_name, metrics in metrics_dict.items():
             row = metrics.to_dict()
-            row['Model'] = model_name
+            row["Model"] = model_name
             data.append(row)
 
         df = pd.DataFrame(data)
 
         # Select key metrics
-        metrics_to_plot = ['accuracy', 'f1_fake', 'f1_real', 'f1_weighted']
-        plot_data = df[['Model'] + metrics_to_plot].set_index('Model')
+        metrics_to_plot = ["accuracy", "f1_fake", "f1_real", "f1_weighted"]
+        plot_data = df[["Model"] + metrics_to_plot].set_index("Model")
 
         fig, ax = plt.subplots(figsize=figsize)
-        plot_data.plot(kind='bar', ax=ax, width=0.8)
+        plot_data.plot(kind="bar", ax=ax, width=0.8)
 
-        ax.set_title('Model Metrics Comparison', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Score', fontsize=12)
-        ax.set_xlabel('Model', fontsize=12)
+        ax.set_title("Model Metrics Comparison", fontsize=14, fontweight="bold")
+        ax.set_ylabel("Score", fontsize=12)
+        ax.set_xlabel("Model", fontsize=12)
         ax.set_ylim([0.9, 1.0])
-        ax.legend(loc='lower right', fontsize=10)
-        ax.grid(True, alpha=0.3, axis='y')
-        plt.xticks(rotation=45, ha='right')
+        ax.legend(loc="lower right", fontsize=10)
+        ax.grid(True, alpha=0.3, axis="y")
+        plt.xticks(rotation=45, ha="right")
 
         filepath = self.output_dir / "metrics_comparison.png"
         plt.tight_layout()
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        plt.savefig(filepath, dpi=300, bbox_inches="tight")
         plt.close()
 
         logger.info(f"Metrics comparison plot saved to {filepath}")
@@ -420,6 +409,7 @@ class EvaluationVisualizer:
 # Model Comparison Class
 # =====================================
 
+
 class ModelComparator:
     """Compare performance of multiple models"""
 
@@ -427,13 +417,7 @@ class ModelComparator:
         self.results = {}
         self.visualizer = EvaluationVisualizer()
 
-    def evaluate_model(
-        self,
-        model,
-        model_name: str,
-        X_test: np.ndarray,
-        y_test: np.ndarray
-    ) -> ClassificationMetrics:
+    def evaluate_model(self, model, model_name: str, X_test: np.ndarray, y_test: np.ndarray) -> ClassificationMetrics:
         """
         Evaluate a single model
 
@@ -458,11 +442,7 @@ class ModelComparator:
         evaluator.compute_confusion_matrix(y_test, y_pred)
 
         # Save results
-        self.results[model_name] = {
-            'evaluator': evaluator,
-            'metrics': metrics,
-            'y_pred': y_pred
-        }
+        self.results[model_name] = {"evaluator": evaluator, "metrics": metrics, "y_pred": y_pred}
 
         return metrics
 
@@ -475,18 +455,18 @@ class ModelComparator:
         """
         data = []
         for model_name, result in self.results.items():
-            metrics_dict = result['metrics'].to_dict()
-            metrics_dict['Model'] = model_name
+            metrics_dict = result["metrics"].to_dict()
+            metrics_dict["Model"] = model_name
             data.append(metrics_dict)
 
         df = pd.DataFrame(data)
-        df = df.set_index('Model')
+        df = df.set_index("Model")
 
         logger.info(f"Model Comparison:\n{df}")
 
         return df
 
-    def rank_models(self, metric: str = 'f1_weighted') -> pd.DataFrame:
+    def rank_models(self, metric: str = "f1_weighted") -> pd.DataFrame:
         """
         Rank models by a specific metric
 
@@ -498,13 +478,13 @@ class ModelComparator:
         """
         data = []
         for model_name, result in self.results.items():
-            metrics_dict = result['metrics'].to_dict()
-            metrics_dict['Model'] = model_name
+            metrics_dict = result["metrics"].to_dict()
+            metrics_dict["Model"] = model_name
             data.append(metrics_dict)
 
         df = pd.DataFrame(data)
         df_ranked = df.sort_values(metric, ascending=False).reset_index(drop=True)
-        df_ranked['Rank'] = df_ranked.index + 1
+        df_ranked["Rank"] = df_ranked.index + 1
 
         logger.info(f"Models ranked by {metric}:\n{df_ranked}")
 
@@ -538,6 +518,7 @@ class ModelComparator:
 # Comprehensive Evaluation Pipeline
 # =====================================
 
+
 class EvaluationPipeline:
     """Orchestrate end-to-end evaluation"""
 
@@ -546,10 +527,7 @@ class EvaluationPipeline:
         self.visualizer = EvaluationVisualizer()
 
     def evaluate_all(
-        self,
-        models_dict: Dict[str, Any],
-        X_test: np.ndarray,
-        y_test: np.ndarray
+        self, models_dict: Dict[str, Any], X_test: np.ndarray, y_test: np.ndarray
     ) -> Dict[str, ClassificationMetrics]:
         """
         Evaluate multiple models
@@ -562,9 +540,9 @@ class EvaluationPipeline:
         Returns:
             Dictionary with evaluation results
         """
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("STARTING COMPREHENSIVE EVALUATION")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         results = {}
 
@@ -581,7 +559,7 @@ class EvaluationPipeline:
             cm = evaluator.compute_confusion_matrix(y_test, y_pred)
 
             # Generate report
-            report = evaluator.generate_classification_report(y_test, y_pred)
+            evaluator.generate_classification_report(y_test, y_pred)
 
             # Create visualizations
             self.visualizer.plot_confusion_matrix(cm, model_name)
@@ -591,9 +569,9 @@ class EvaluationPipeline:
 
             results[model_name] = metrics
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("EVALUATION COMPLETE")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         return results
 
@@ -604,8 +582,8 @@ class EvaluationPipeline:
         Returns:
             Path to comparison results
         """
-        comparison_df = self.comparator.compare_models()
-        ranked_df = self.comparator.rank_models('f1_weighted')
+        self.comparator.compare_models()
+        ranked_df = self.comparator.rank_models("f1_weighted")
 
         # Save to CSV
         comparison_file = self.comparator.save_comparison()
@@ -629,14 +607,23 @@ if __name__ == "__main__":
     )
 
     parser = argparse.ArgumentParser(description="Evaluate Fatocheck models")
-    parser.add_argument('--data', type=str, help='Path to test data')
-    parser.add_argument('--models', type=str, nargs='+', default=['xgboost', 'logistic_regression'],
-                       help='Models to evaluate')
-    parser.add_argument('--tune', action='store_true', help='Perform hyperparameter tuning')
-    parser.add_argument('--tuner', type=str, choices=['lr', 'rf', 'xgb'],
-                       help='Model to tune using RandomizedSearchCV')
-    parser.add_argument('--n_iter', type=int, default=10, help='Iterations for RandomizedSearchCV')
-    parser.add_argument('--cv', type=int, default=5, help='Cross-validation folds')
+    parser.add_argument("--data", type=str, help="Path to test data")
+    parser.add_argument(
+        "--models",
+        type=str,
+        nargs="+",
+        default=["xgboost", "logistic_regression"],
+        help="Models to evaluate",
+    )
+    parser.add_argument("--tune", action="store_true", help="Perform hyperparameter tuning")
+    parser.add_argument(
+        "--tuner",
+        type=str,
+        choices=["lr", "rf", "xgb"],
+        help="Model to tune using RandomizedSearchCV",
+    )
+    parser.add_argument("--n_iter", type=int, default=10, help="Iterations for RandomizedSearchCV")
+    parser.add_argument("--cv", type=int, default=5, help="Cross-validation folds")
 
     args = parser.parse_args()
 
@@ -647,12 +634,12 @@ if __name__ == "__main__":
     if args.tune and args.tuner:
         tuner = HyperparameterTuner()
 
-        if args.tuner == 'lr':
+        if args.tuner == "lr":
             logger.info("Tuning Logistic Regression...")
             # tuner.tune_logistic_regression(X_train_tfidf, y_train, n_iter=args.n_iter, cv=args.cv)
-        elif args.tuner == 'rf':
+        elif args.tuner == "rf":
             logger.info("Tuning Random Forest...")
             # tuner.tune_random_forest(X_train_tfidf, y_train, n_iter=args.n_iter, cv=args.cv)
-        elif args.tuner == 'xgb':
+        elif args.tuner == "xgb":
             logger.info("Tuning XGBoost...")
             # tuner.tune_xgboost(X_train_tfidf, y_train, n_iter=args.n_iter, cv=args.cv)

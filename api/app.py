@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from utils.inference import health_check, predict_news
 from utils.settings import configure_logging, get_settings
 
-
 # =========================================================
 # Logging
 # =========================================================
@@ -37,6 +36,7 @@ app = FastAPI(
 # Request schema
 # =========================================================
 
+
 def _default_model_type() -> Literal["xgboost", "bert"]:
     return get_settings().default_model_type
 
@@ -61,13 +61,8 @@ class NewsArticle(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "title": (
-                    "Scientists announce a new AI system"
-                ),
-                "text": (
-                    "Researchers published details of a "
-                    "system for detecting misinformation."
-                ),
+                "title": ("Scientists announce a new AI system"),
+                "text": ("Researchers published details of a " "system for detecting misinformation."),
                 "model": "xgboost",
             }
         }
@@ -77,6 +72,7 @@ class NewsArticle(BaseModel):
 # =========================================================
 # Startup
 # =========================================================
+
 
 @app.on_event("startup")
 async def startup_event() -> None:
@@ -89,14 +85,13 @@ async def startup_event() -> None:
         logger.warning("XGBoost model is unavailable")
 
     if not status["bert_artifact_available"]:
-        logger.warning(
-            "Local BERT artifact is missing or incomplete"
-        )
+        logger.warning("Local BERT artifact is missing or incomplete")
 
 
 # =========================================================
 # Root endpoint
 # =========================================================
+
 
 @app.get("/")
 def read_root():
@@ -116,9 +111,7 @@ def read_root():
         "version": "2.0.0",
         "available_models": available_models,
         "xgboost_ready": status["xgboost_available"],
-        "bert_artifact_available": (
-            status["bert_artifact_available"]
-        ),
+        "bert_artifact_available": (status["bert_artifact_available"]),
         "bert_loaded": status["bert_loaded"],
     }
 
@@ -126,6 +119,7 @@ def read_root():
 # =========================================================
 # Health and readiness
 # =========================================================
+
 
 @app.get("/health")
 def health():
@@ -139,9 +133,7 @@ def health():
 
     return {
         "status": "healthy",
-        "bert_artifact_available": (
-            status["bert_artifact_available"]
-        ),
+        "bert_artifact_available": (status["bert_artifact_available"]),
         "bert_loaded": status["bert_loaded"],
     }
 
@@ -163,6 +155,7 @@ def readiness():
 # Models endpoint
 # =========================================================
 
+
 @app.get("/models")
 def get_models():
     status = health_check()
@@ -178,20 +171,12 @@ def get_models():
         "models": {
             "xgboost": {
                 "type": "Classical machine learning",
-                "description": (
-                    "TF-IDF + tuned XGBoost pipeline"
-                ),
-                "status": (
-                    "production"
-                    if status["xgboost_available"]
-                    else "unavailable"
-                ),
+                "description": ("TF-IDF + tuned XGBoost pipeline"),
+                "status": ("production" if status["xgboost_available"] else "unavailable"),
             },
             "bert": {
                 "type": "Transformer",
-                "description": (
-                    "Locally fine-tuned BERT classifier"
-                ),
+                "description": ("Locally fine-tuned BERT classifier"),
                 "status": bert_status,
             },
         }
@@ -202,11 +187,10 @@ def get_models():
 # Prediction endpoint
 # =========================================================
 
+
 @app.post("/predict")
 def predict(article: NewsArticle):
-    full_text = (
-        f"{article.title or ''}\n{article.text}"
-    ).strip()
+    full_text = (f"{article.title or ''}\n{article.text}").strip()
 
     if not full_text:
         raise HTTPException(

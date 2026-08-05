@@ -49,9 +49,7 @@ class TestHyperparameterTuner:
         monkeypatch.setattr(training, "RandomizedSearchCV", FakeRandomizedSearchCV)
 
         tuner = training.HyperparameterTuner()
-        result = tuner.tune_logistic_regression(
-            X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2
-        )
+        result = tuner.tune_logistic_regression(X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2)
 
         assert result["best_params"] == {"C": 1, "penalty": "l2"}
         assert result["best_score"] == 0.95
@@ -72,9 +70,7 @@ class TestHyperparameterTuner:
         monkeypatch.setattr(training, "RandomizedSearchCV", FakeRandomizedSearchCV)
 
         tuner = training.HyperparameterTuner()
-        result = tuner.tune_random_forest(
-            X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2
-        )
+        result = tuner.tune_random_forest(X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2)
 
         assert result["best_params"] == {"n_estimators": 100}
 
@@ -94,9 +90,7 @@ class TestHyperparameterTuner:
         monkeypatch.setattr(training, "RandomizedSearchCV", FakeRandomizedSearchCV)
 
         tuner = training.HyperparameterTuner()
-        result = tuner.tune_xgboost(
-            X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2
-        )
+        result = tuner.tune_xgboost(X_train=[[1], [2], [3]], y_train=[0, 1, 0], n_iter=2, cv=2)
 
         assert result["best_params"] == {"max_depth": 5}
 

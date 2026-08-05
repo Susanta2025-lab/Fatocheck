@@ -1,6 +1,5 @@
-import pandas as pd
 import re
-import string # Optional, but good if you want to use string.punctuation
+
 
 class TextPreprocessor:
 
@@ -13,19 +12,19 @@ class TextPreprocessor:
             return ""
 
         # Remove URLs
-        text = re.sub(r'http\S+|www\S+', '', text)
+        text = re.sub(r"http\S+|www\S+", "", text)
 
         # Remove HTML tags
-        text = re.sub(r'<.*?>', '', text)
+        text = re.sub(r"<.*?>", "", text)
 
         # Convert to lowercase
         text = text.lower()
 
         # Remove punctuation (strips out anything that isn't alphanumeric or whitespace)
-        text = re.sub(r'[^a-zA-Z\s]', '', text)
+        text = re.sub(r"[^a-zA-Z\s]", "", text)
 
         # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"\s+", " ", text).strip()
 
         return text
 
