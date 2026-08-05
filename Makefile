@@ -1,4 +1,4 @@
-.PHONY: help install run test lint format clean docker-build docker-run
+.PHONY: help install run test lint format format-check clean docker-build docker-run
 
 help:
 	@echo "Fatocheck - Fake News Detection API"
@@ -8,6 +8,7 @@ help:
 	@echo "  make test          - Run tests"
 	@echo "  make lint          - Run code linting"
 	@echo "  make format        - Format code"
+	@echo "  make format-check  - Check formatting without modifying files"
 	@echo "  make docker-build  - Build Docker image"
 	@echo "  make docker-run    - Run Docker container"
 	@echo "  make clean         - Clean up cache files"
@@ -23,11 +24,14 @@ test:
 
 lint:
 	flake8 . --max-line-length=120
-	pylint api/ utils/
 
 format:
 	black . --line-length=120
 	isort .
+
+format-check:
+	black . --line-length=120 --check
+	isort . --check-only
 
 docker-build:
 	docker build -t fatocheck:latest .
