@@ -2,12 +2,10 @@ import re
 
 
 class TextPreprocessor:
-
     def __init__(self):
         pass
 
     def clean_text(self, text):
-
         if not isinstance(text, str):
             return ""
 
@@ -29,7 +27,6 @@ class TextPreprocessor:
         return text
 
     def preprocess_dataframe(self, df):
-
         required_columns = ["title", "text"]
 
         for col in required_columns:

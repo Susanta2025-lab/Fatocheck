@@ -598,7 +598,6 @@ class EvaluationPipeline:
 # =====================================
 
 if __name__ == "__main__":
-
     import argparse
 
     # Logging is configured only at the CLI entry point, not on import.
