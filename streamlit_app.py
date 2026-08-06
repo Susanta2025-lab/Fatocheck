@@ -330,33 +330,31 @@ def main() -> None:
             render_prediction_result(body, headers)
         else:
             render_error(body, headers)
+
     # ------------------------------------------------------------------
-    # Author Information
+    # Sidebar - Author Information
     # ------------------------------------------------------------------
 
-    st.divider()
+    st.sidebar.divider()
 
-    st.markdown("### About")
+    st.sidebar.markdown("### About")
 
-    st.markdown(
+    st.sidebar.markdown("**Susanta Hazra**")
+
+    st.sidebar.caption("AI Engineer")
+
+    st.sidebar.markdown(
         """
-        <div style="text-align:center; font-size:0.95rem; color:#666;">
-            <strong>Designed &amp; Developed by Susanta Hazra</strong><br>
-            AI Engineer | PhD in Chemistry
-            <br><br>
+🔗 [LinkedIn](https://www.linkedin.com/in/susantahazra/)
 
-            🔗 <a href="https://www.linkedin.com/in/susantahazra/" target="_blank">
-            LinkedIn
-            </a>
+💻 [GitHub](https://github.com/Susanta2025-lab)
+"""
+    )
 
-            &nbsp;&nbsp;|&nbsp;&nbsp;
+    st.sidebar.divider()
 
-            💻 <a href="https://github.com/Susanta2025-lab" target="_blank">
-            GitHub
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    st.sidebar.caption(
+        "Powered by FastAPI • Streamlit • XGBoost • BERT"
     )
 
 
