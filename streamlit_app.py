@@ -353,9 +353,7 @@ def main() -> None:
 
     st.sidebar.divider()
 
-    st.sidebar.caption(
-        "Powered by FastAPI • Streamlit • XGBoost • BERT"
-    )
+    st.sidebar.caption("Powered by FastAPI • Streamlit • XGBoost • BERT")
 
 
 # ------------------------------------------------------------------
