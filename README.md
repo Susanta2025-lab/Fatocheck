@@ -369,6 +369,46 @@ Runtime settings are centralized in `utils/settings.py` and can be overridden wi
 
 Per-request model selection via the API `model` field still overrides `MODEL_TYPE`.
 
+
+### Streamlit UI (local demo)
+
+The Streamlit app is a presentation layer only. It never loads models; it calls the FastAPI backend over HTTP.
+
+```text
+Browser
+   │
+   ▼
+Streamlit UI
+   │  HTTP
+   ▼
+FastAPI
+   │
+Inference Layer
+   ├── XGBoost (production)
+   └── BERT (optional / local)
+```
+
+1. Start the API:
+
+```bash
+uvicorn api.app:app --reload --port 8000
+```
+
+2. In a second terminal, start Streamlit:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Optional environment variable:
+
+```text
+FATOCHECK_API_URL=http://127.0.0.1:8000
+```
+
+Point `FATOCHECK_API_URL` at any reachable FatoCheck API (local or remote). Do not hard-code deployment URLs in the UI.
+
+
 ### Continuous Integration
 
 GitHub Actions runs on pushes and pull requests to `master` (workflow: `.github/workflows/ci.yml`):

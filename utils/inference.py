@@ -128,12 +128,10 @@ def _validate_bert_artifact() -> None:
         raise FileNotFoundError(f"No BERT weight file found in {BERT_MODEL_PATH}. " f"Expected one of: {expected}.")
 
 
-def load_bert_model() -> (
-    Tuple[
-        PreTrainedTokenizerBase,
-        PreTrainedModel,
-    ]
-):
+def load_bert_model() -> Tuple[
+    PreTrainedTokenizerBase,
+    PreTrainedModel,
+]:
     """Load the locally fine-tuned BERT model on first use."""
 
     global _tokenizer, _bert_model, _bert_load_error
