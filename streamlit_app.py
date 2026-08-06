@@ -5,6 +5,10 @@ Presentation layer only. All predictions go through the FastAPI backend
 over HTTP. This module does not import inference, preprocessing, or models.
 """
 
+# ------------------------------------------------------------------
+# Imports
+# ------------------------------------------------------------------
+
 from __future__ import annotations
 
 import json
@@ -16,15 +20,28 @@ from urllib.request import Request, urlopen
 
 import streamlit as st
 
+# ------------------------------------------------------------------
+# Constants
+# ------------------------------------------------------------------
+
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 REQUEST_TIMEOUT_SECONDS = 30
 REQUEST_ID_HEADER = "X-Request-ID"
 PROCESS_TIME_HEADER = "X-Process-Time"
 
+# ------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------
+
 
 def get_api_base_url() -> str:
     """Return the FastAPI base URL from the environment."""
     return os.getenv("FATOCHECK_API_URL", DEFAULT_API_URL).rstrip("/")
+
+
+# ------------------------------------------------------------------
+# HTTP Client
+# ------------------------------------------------------------------
 
 
 def _http_json(
@@ -63,6 +80,11 @@ def _http_json(
         raise ConnectionError(f"Unable to reach the FatoCheck API at {url}: {exc.reason}") from exc
     except TimeoutError as exc:
         raise TimeoutError(f"The FatoCheck API timed out after {timeout}s.") from exc
+
+
+# ------------------------------------------------------------------
+# Backend API Functions
+# ------------------------------------------------------------------
 
 
 def fetch_health(api_base: str) -> dict[str, Any]:
@@ -106,6 +128,11 @@ def predict_article(
     return False, body, headers
 
 
+# ------------------------------------------------------------------
+# Response Parsing
+# ------------------------------------------------------------------
+
+
 def _extract_error_message(body: dict[str, Any] | None) -> str | None:
     if not isinstance(body, dict):
         return None
@@ -116,6 +143,11 @@ def _extract_error_message(body: dict[str, Any] | None) -> str | None:
     if isinstance(detail, str):
         return detail
     return None
+
+
+# ------------------------------------------------------------------
+# UI Rendering Helpers
+# ------------------------------------------------------------------
 
 
 def render_health_indicator(api_base: str) -> None:
@@ -189,21 +221,33 @@ def render_error(body: dict[str, Any], headers: dict[str, str]) -> None:
     st.error(_extract_error_message(body) or "Request failed.")
 
 
+# ------------------------------------------------------------------
+# Main Application
+# ------------------------------------------------------------------
+
+
 def main() -> None:
+    # ------------------------------------------------------------------
+    # Page Configuration
+    # ------------------------------------------------------------------
     st.set_page_config(
         page_title="FatoCheck",
         layout="centered",
     )
 
     api_base = get_api_base_url()
-
+    # ------------------------------------------------------------------
+    # Header
+    # ------------------------------------------------------------------
     st.title("FatoCheck")
     st.write(
         "AI-powered fake-news classification demo. "
         "This UI sends requests to the FastAPI backend; "
         "models are never loaded inside Streamlit."
     )
-
+    # ------------------------------------------------------------------
+    # Architecture
+    # ------------------------------------------------------------------
     with st.expander("Architecture", expanded=False):
         st.code(
             "Browser\n"
@@ -221,9 +265,14 @@ def main() -> None:
         )
         st.caption(f"API base URL: `{api_base}` (override with `FATOCHECK_API_URL`)")
 
+    # ------------------------------------------------------------------
+    # Backend Status
+    # ------------------------------------------------------------------
     st.subheader("Backend status")
     render_health_indicator(api_base)
-
+    # ------------------------------------------------------------------
+    # Model Configuration
+    # ------------------------------------------------------------------
     model_options = ["xgboost", "bert"]
     models_payload = None
     try:
@@ -236,7 +285,9 @@ def main() -> None:
         xgb_status = models_payload["models"].get("xgboost", {}).get("status", "unknown")
         bert_status = models_payload["models"].get("bert", {}).get("status", "unknown")
         model_help = f"API reports XGBoost as `{xgb_status}` and BERT as `{bert_status}`."
-
+    # ------------------------------------------------------------------
+    # Article Analysis Form
+    # ------------------------------------------------------------------
     st.subheader("Analyze an article")
     model = st.selectbox("Model", options=model_options, index=0, help=model_help)
     title = st.text_input("Headline (optional)", placeholder="Optional news headline")
@@ -245,7 +296,9 @@ def main() -> None:
         height=220,
         placeholder="Paste the news article body here.",
     )
-
+    # ------------------------------------------------------------------
+    # Prediction Request
+    # ------------------------------------------------------------------
     if st.button("Analyze", type="primary"):
         cleaned_title = (title or "").strip()
         cleaned_text = (text or "").strip()
@@ -277,7 +330,38 @@ def main() -> None:
             render_prediction_result(body, headers)
         else:
             render_error(body, headers)
+    # ------------------------------------------------------------------
+    # Author Information
+    # ------------------------------------------------------------------
+
+    st.divider()
+
+    st.markdown("### About")
+
+    st.markdown(
+        """
+        <div style="text-align:center; font-size:0.95rem; color:#666;">
+            <strong>Designed &amp; Developed by Susanta Hazra</strong><br>
+            AI Engineer | PhD in Chemistry
+            <br><br>
+
+            🔗 <a href="https://www.linkedin.com/in/susantahazra/" target="_blank">
+            LinkedIn
+            </a>
+
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+
+            💻 <a href="https://github.com/Susanta2025-lab" target="_blank">
+            GitHub
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
+# ------------------------------------------------------------------
+# Application Entry Point
+# ------------------------------------------------------------------
 if __name__ == "__main__":
     main()
