@@ -337,11 +337,9 @@ def main() -> None:
 
     st.sidebar.divider()
 
-    st.sidebar.markdown("### About")
+    st.sidebar.markdown("### Designed & Built by")
 
     st.sidebar.markdown("**Susanta Hazra**")
-
-    st.sidebar.caption("AI Engineer")
 
     st.sidebar.markdown(
         """
